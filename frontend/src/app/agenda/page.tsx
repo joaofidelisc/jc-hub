@@ -28,6 +28,14 @@ import {
   CircularProgress
 } from "@mui/material";
 import { FilterList as FilterIcon } from "@mui/icons-material";
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+
+// Define o locale português brasileiro
+dayjs.locale('pt-br');
 
 export default function Agenda() {
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -36,11 +44,16 @@ export default function Agenda() {
 
   // Modal states
   const [open, setOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    client_name: string;
+    client_phone: string;
+    service: string;
+    scheduled_at: dayjs.Dayjs | null;
+  }>({
     client_name: "",
     client_phone: "",
     service: "",
-    scheduled_at: "",
+    scheduled_at: null,
   });
 
   const fetchAppointments = async () => {
@@ -63,10 +76,11 @@ export default function Agenda() {
   }, []);
 
   const handleCreate = async () => {
+    if (!formData.scheduled_at) return;
     try {
       const payload = {
         ...formData,
-        scheduled_at: new Date(formData.scheduled_at).toISOString(),
+        scheduled_at: formData.scheduled_at.toISOString(),
         agent_origin: "Humano",
         status: "Confirmado"
       };
@@ -79,7 +93,7 @@ export default function Agenda() {
       
       if (res.ok) {
         setOpen(false);
-        setFormData({ client_name: "", client_phone: "", service: "", scheduled_at: "" });
+        setFormData({ client_name: "", client_phone: "", service: "", scheduled_at: null });
         fetchAppointments();
       }
     } catch (err) {
@@ -189,34 +203,35 @@ export default function Agenda() {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Novo Agendamento Manual</DialogTitle>
         <DialogContent dividers>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
-            <TextField 
-              label="Nome do Cliente" 
-              fullWidth 
-              value={formData.client_name}
-              onChange={(e) => setFormData({...formData, client_name: e.target.value})}
-            />
-            <TextField 
-              label="Telefone (Opcional)" 
-              fullWidth 
-              value={formData.client_phone}
-              onChange={(e) => setFormData({...formData, client_phone: e.target.value})}
-            />
-            <TextField 
-              label="Serviço (Ex: Consultoria)" 
-              fullWidth 
-              value={formData.service}
-              onChange={(e) => setFormData({...formData, service: e.target.value})}
-            />
-            <TextField 
-              label="Data e Hora" 
-              type="datetime-local"
-              fullWidth 
-              InputLabelProps={{ shrink: true }}
-              value={formData.scheduled_at}
-              onChange={(e) => setFormData({...formData, scheduled_at: e.target.value})}
-            />
-          </Box>
+          <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
+              <TextField 
+                label="Nome do Cliente" 
+                fullWidth 
+                value={formData.client_name}
+                onChange={(e) => setFormData({...formData, client_name: e.target.value})}
+              />
+              <TextField 
+                label="Telefone (Opcional)" 
+                fullWidth 
+                value={formData.client_phone}
+                onChange={(e) => setFormData({...formData, client_phone: e.target.value})}
+              />
+              <TextField 
+                label="Serviço (Ex: Consultoria)" 
+                fullWidth 
+                value={formData.service}
+                onChange={(e) => setFormData({...formData, service: e.target.value})}
+              />
+              <DateTimePicker
+                label="Data e Hora"
+                format="DD/MM/YYYY HH:mm"
+                value={formData.scheduled_at}
+                onChange={(newValue) => setFormData({...formData, scheduled_at: newValue})}
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            </Box>
+          </LocalizationProvider>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setOpen(false)} color="inherit">Cancelar</Button>

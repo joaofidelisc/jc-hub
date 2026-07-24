@@ -157,7 +157,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
                 <ListItem disablePadding key={item.path}>
                   <ListItemButton component="a" href={item.path} selected={pathname === item.path}>
                     <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 500 }} />
+                    <ListItemText primary={<Typography sx={{ fontWeight: 500 }}>{item.label}</Typography>} />
                   </ListItemButton>
                 </ListItem>
               ))}
@@ -169,7 +169,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
               <ListItem disablePadding>
                 <ListItemButton>
                   <ListItemIcon sx={{ minWidth: 40 }}><SettingsIcon /></ListItemIcon>
-                  <ListItemText primary="Configurações" primaryTypographyProps={{ fontWeight: 500 }} />
+                  <ListItemText primary={<Typography sx={{ fontWeight: 500 }}>Configurações</Typography>} />
                 </ListItemButton>
               </ListItem>
             </List>
