@@ -6,7 +6,7 @@ import {
   Typography,
   Card,
   CardContent,
-  Grid,
+  Grid2 as Grid,
   Button,
   AppBar,
   Toolbar,
@@ -131,7 +131,7 @@ export default function Dashboard() {
 
           <Grid container spacing={3} sx={{ mb: 4 }}>
             {stats.map((stat, index) => (
-              <Grid item xs={12} sm={4} key={index}>
+              <Grid size={{ xs: 12, sm: 4 }} key={index}>
                 <Card>
                   <CardContent sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", p: 3 }}>
                     <Box>
@@ -155,7 +155,7 @@ export default function Dashboard() {
           </Grid>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} md={8}>
+            <Grid size={{ xs: 12, md: 8 }}>
               <Card sx={{ height: "100%", minHeight: 350 }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" sx={{ mb: 3 }}>Atendimentos Recentes da IA</Typography>
@@ -165,7 +165,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={4}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <Card sx={{ height: "100%" }}>
                 <CardContent sx={{ p: 3 }}>
                   <Typography variant="h6" sx={{ mb: 3 }}>Status dos Agentes</Typography>

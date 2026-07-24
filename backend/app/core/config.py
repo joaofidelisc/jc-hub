@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
+    # External Agent VM (OpenClaw)
+    AGENT_API_URL: str = os.getenv("AGENT_API_URL", "http://127.0.0.1:18789")
+    AGENT_API_TOKEN: str = os.getenv("AGENT_API_TOKEN", "177bdb65bab963b4da14fedba8c8839a4568ff773bf7681c")
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="allow")
 
 settings = Settings()
