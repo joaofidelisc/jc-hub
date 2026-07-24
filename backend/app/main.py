@@ -12,7 +12,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.core.database import Base, engine
+from app.api.agenda import router as agenda_router
+
+# Cria as tabelas no banco caso não existam
+Base.metadata.create_all(bind=engine)
+
 app.include_router(whatsapp_router, prefix="/api/v1")
+app.include_router(agenda_router, prefix="/api/v1")
 
 @app.get("/")
 def read_root():
