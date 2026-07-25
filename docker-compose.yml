@@ -3,7 +3,7 @@ version: '3.8'
 services:
   postgres:
     image: ankane/pgvector:latest
-    container_name: jcbusiness-postgres
+    container_name: jc-hub-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-admin}
@@ -14,23 +14,24 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - jcbusiness-network
+      - jc-hub-network
 
   redis:
     image: redis:7-alpine
-    container_name: jcbusiness-redis
+    container_name: jc-hub-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - jcbusiness-network
+      - jc-hub-network
 
   backend:
+    image: jc-hub-backend
     build: 
       context: ./backend
-    container_name: jcbusiness-backend
+    container_name: jc-hub-backend
     restart: unless-stopped
     env_file:
       - .env
@@ -47,12 +48,13 @@ services:
     volumes:
       - ./backend:/app
     networks:
-      - jcbusiness-network
+      - jc-hub-network
 
   worker:
+    image: jc-hub-worker
     build: 
       context: ./backend
-    container_name: jcbusiness-worker
+    container_name: jc-hub-worker
     restart: unless-stopped
     command: python worker.py
     env_file:
@@ -68,11 +70,11 @@ services:
     volumes:
       - ./backend:/app
     networks:
-      - jcbusiness-network
+      - jc-hub-network
 
   frontend:
     image: node:18-alpine
-    container_name: jcbusiness-frontend
+    container_name: jc-hub-frontend
     restart: unless-stopped
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000"
     ports:
@@ -81,10 +83,10 @@ services:
       - ./frontend:/app
     working_dir: /app
     networks:
-      - jcbusiness-network
+      - jc-hub-network
 
 networks:
-  jcbusiness-network:
+  jc-hub-network:
     driver: bridge
 
 volumes:

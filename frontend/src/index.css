@@ -114,11 +114,13 @@ body {
 
 .btn-primary {
   background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-dark);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  border-color: var(--primary-dark);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
   transform: translateY(-1px);
 }
 
@@ -134,10 +136,12 @@ body {
 
 .btn-danger {
   background: var(--danger);
+  border-color: var(--danger);
   color: #fff;
 }
 .btn-danger:hover:not(:disabled) {
   background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .btn svg {
