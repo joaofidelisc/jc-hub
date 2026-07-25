@@ -37,8 +37,31 @@ services:
     environment:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-1}
     ports:
       - "${API_PORT:-8000}:8000"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+    networks:
+      - jcbusiness-network
+
+  worker:
+    build: 
+      context: ./backend
+    container_name: jcbusiness-worker
+    restart: unless-stopped
+    command: python worker.py
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-1}
     depends_on:
       - postgres
       - redis

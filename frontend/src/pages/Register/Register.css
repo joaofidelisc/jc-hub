@@ -1,0 +1,66 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: var(--bs-light-bg-subtle);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 38rem;
+  background-color: var(--bs-body-bg);
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.08);
+}
+
+.brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.brand-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 9999rem;
+  background: rgba(var(--bs-primary-rgb), 0.1);
+  color: var(--bs-primary);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+  color: var(--bs-secondary-color);
+  text-align: center;
+}
+
+.form .form-control {
+  border-radius: 0.5rem;
+}
+
+.alt-action {
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--bs-secondary-color);
+}
+
+.alt-action .link {
+  color: var(--bs-primary);
+  text-decoration: none;
+}
+
+.alt-action .link:hover {
+  text-decoration: underline;
+}

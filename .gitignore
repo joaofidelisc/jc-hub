@@ -12,3 +12,7 @@ build/
 .next/
 coverage/
 *.log
+.vscode/
+.idea/
+postgres_data/
+redis_data/

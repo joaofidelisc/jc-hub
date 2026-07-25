@@ -1,12 +1,15 @@
-FROM node:20-alpine
-
+# Build stage
+FROM node:18-alpine AS build
 WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm install
-
+COPY package.json package-lock.json* ./
+RUN npm ci
 COPY . .
+RUN npm run build
 
-# Para desenvolvimento local
-CMD ["npm", "run", "dev"]
+# Production stage
+# Production stage
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/dist /srv
+EXPOSE 80 443
+CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]

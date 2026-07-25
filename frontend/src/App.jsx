@@ -1,0 +1,51 @@
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import Home from './pages/Home/Home';
+import Profile from './pages/Profile/Profile';
+import Login from './pages/Login/Login';
+import Register from './pages/Register/Register';
+import InstagramSetup from './pages/InstagramSetup/InstagramSetup';
+import OAuthCallback from './pages/InstagramSetup/OAuthCallback';
+import InstagramInstructions from './pages/InstagramSetup/Instructions';
+import InstagramInstructionsDetailed from './pages/InstagramSetup/InstructionsDetailed';
+import Keywords from './pages/InstagramSetup/Keywords';
+import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
+import TermsOfUse from './pages/TermsOfUse/TermsOfUse';
+
+import MessengerSetup from './pages/MessengerSetup/MessengerSetup';
+import MessengerInstructions from './pages/MessengerSetup/Instructions';
+import MessengerInstructionsDetailed from './pages/MessengerSetup/InstructionsDetailed';
+
+function App() {
+  return (
+    <div>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/profile" element={<Profile />} />
+        
+        {/* Instagram Routes */}
+        <Route path="/instagram/setup" element={<InstagramSetup />} />
+        <Route path="/instagram/oauth/callback" element={<OAuthCallback />} />
+        <Route path="/instagram/instructions" element={<InstagramInstructions />} />
+        <Route path="/instagram/instructions-detailed" element={<InstagramInstructionsDetailed />} />
+        <Route path="/instagram/keywords" element={<Keywords />} />
+
+        {/* Messenger Routes */}
+        <Route path="/messenger/setup" element={<MessengerSetup />} />
+        <Route path="/messenger/instructions" element={<MessengerInstructions />} />
+        <Route path="/messenger/instructions-detailed" element={<MessengerInstructionsDetailed />} />
+
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfUse />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+      <ToastContainer />
+    </div>
+  );
+}
+
+export default App;

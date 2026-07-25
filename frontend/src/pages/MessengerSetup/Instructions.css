@@ -1,0 +1,87 @@
+.ig-inst-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-body-bg);
+}
+
+.ig-header {
+  display: flex;
+  align-items: center;  justify-content: space-between;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-bottom: 0.0625rem solid var(--bs-border-color);
+}
+
+.brand {
+  font-weight: 800;  color: var(--bs-primary);
+  color: var(--bs-primary);
+  letter-spacing: 0.04em;
+}
+
+.brand-link { text-decoration: none; }
+.brand-link:hover { text-decoration: underline; }
+
+.nav { display: flex; gap: 1rem; }
+.nav-link { color: var(--bs-body-color); text-decoration: none; }
+.nav-link:hover { text-decoration: underline; }
+
+.ig-inst-content {
+  width: 100%;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.ig-inst-card {
+  background: var(--bs-light-bg-subtle);
+  border-radius: 1rem;
+  border: 0.0625rem solid var(--bs-border-color);
+  padding: 2rem;
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.06);
+  display: grid;
+  gap: 1rem;
+}
+
+.title {
+  margin: 0 0 0.5rem 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin: 0 0 1rem 0;
+  color: var(--bs-secondary-color);
+}
+
+.steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.kbd {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+  border: 0.0625rem solid var(--bs-border-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.notice {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: rgba(13, 110, 253, 0.06);
+  border: 0.0625rem solid rgba(13, 110, 253, 0.2);
+  color: var(--bs-body-color);
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: end;
+  flex-wrap: wrap;
+}

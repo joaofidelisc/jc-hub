@@ -28,13 +28,18 @@ class Settings(BaseSettings):
     EVOLUTION_API_KEY: str = os.getenv("EVOLUTION_API_KEY", "")
     EVOLUTION_API_INSTANCE: str = os.getenv("EVOLUTION_API_INSTANCE", "jc_business_instance")
     
-    # OpenAI
+    # OpenAI / Gemini
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
     # External Agent VM (OpenClaw)
     AGENT_API_URL: str = os.getenv("AGENT_API_URL", "http://127.0.0.1:18789")
     AGENT_API_TOKEN: str = os.getenv("AGENT_API_TOKEN", "177bdb65bab963b4da14fedba8c8839a4568ff773bf7681c")
 
+    # Auth JWT
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-key-change-me")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION: int = 60 * 24 * 7 # 7 days
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="allow")
 
 settings = Settings()

@@ -1,0 +1,21 @@
+cardozotech.store, www.cardozotech.store {
+	handle /api/instagram-comment-chat {
+		rewrite * /instagram-comment-chat
+		reverse_proxy api:8000
+	}
+
+	handle_path /api/ig/* {
+		reverse_proxy api:8000
+	}
+
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		root * /srv
+		encode gzip zstd
+		try_files {path} /index.html
+		file_server
+	}
+}
