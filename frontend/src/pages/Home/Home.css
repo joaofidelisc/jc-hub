@@ -44,7 +44,7 @@
 
 .stat-card:hover {
   box-shadow: var(--shadow-md);
-  border-color: #c7d2fe;
+  border-color: var(--md-primary-container);
 }
 
 .stat-icon-wrap {
@@ -174,7 +174,7 @@
 }
 
 .action-icon.violet {
-  background: #7c3aed;
+  background: var(--primary);
 }
 
 .action-icon.blue {

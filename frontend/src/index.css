@@ -80,6 +80,48 @@
   padding: 0;
 }
 
+h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote, dl, dd {
+  margin: 0;
+}
+
+/* ===== DARK THEME (POLY) ===== */
+.dark-theme {
+  /* Adapted Primary Colors for Dark Backgrounds */
+  --md-primary: #14b8a6; /* Bright Teal for visibility */
+  --md-on-primary: #042f2e; /* Dark Teal for contrast on primary */
+  --md-primary-container: #0f766e; /* Muted Teal for backgrounds */
+  --md-on-primary-container: #ccfbf1;
+  
+  --md-surface: #131b2e;
+  --md-surface-variant: #1e293b;
+  --md-on-surface: #f8fafc;
+  --md-on-surface-variant: #94a3b8;
+  --md-outline-variant: #1e293b;
+  --md-outline: #334155;
+
+  --bg-page: #0b101b;
+  --bg-card: var(--md-surface);
+  --bg-subtle: var(--md-surface-variant);
+  --bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* Re-assign legacy aliases to use the new dark md-primary */
+  --primary: var(--md-primary);
+  --primary-dark: #0f766e;
+  --primary-light: #2dd4bf;
+  --primary-bg: rgba(20, 184, 166, 0.1);
+
+  --text-primary: var(--md-on-surface);
+  --text-secondary: var(--md-on-surface-variant);
+  --text-muted: #64748b;
+
+  --border: var(--md-outline-variant);
+  --border-focus: var(--md-primary);
+  
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,.5);
+}
+
 body {
   background: var(--bg-page);
   color: var(--text-primary);
@@ -88,6 +130,17 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
 }
 
 /* ===== GLOBAL UTILITIES ===== */
@@ -117,11 +170,30 @@ body {
   border-color: var(--primary);
   color: #fff;
 }
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled),
+.btn-primary:focus:not(:disabled) {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
   box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
   transform: translateY(-1px);
+  color: #fff;
+}
+.btn-primary:active:not(:disabled) {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  transform: translateY(0);
+  box-shadow: none;
+  color: #fff;
+}
+.btn-primary:focus {
+  box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.25);
+}
+.btn-primary:disabled,
+.btn-primary.disabled {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  opacity: 0.65;
 }
 
 .btn-secondary {
@@ -129,9 +201,15 @@ body {
   color: var(--text-secondary);
   border: 1px solid var(--border);
 }
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled),
+.btn-secondary:focus:not(:disabled),
+.btn-secondary:active:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
+  border-color: var(--border);
+}
+.btn-secondary:focus {
+  box-shadow: 0 0 0 0.25rem rgba(148, 163, 184, 0.25);
 }
 
 .btn-danger {
@@ -139,9 +217,38 @@ body {
   border-color: var(--danger);
   color: #fff;
 }
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover:not(:disabled),
+.btn-danger:focus:not(:disabled),
+.btn-danger:active:not(:disabled) {
   background: #b91c1c;
   border-color: #b91c1c;
+  color: #fff;
+}
+.btn-danger:focus {
+  box-shadow: 0 0 0 0.25rem rgba(220, 38, 38, 0.25);
+}
+
+.btn-success {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+.btn-success:hover:not(:disabled),
+.btn-success:focus:not(:disabled),
+.btn-success:active:not(:disabled) {
+  background: #047857;
+  border-color: #047857;
+  color: #fff;
+}
+.btn-success:focus {
+  box-shadow: 0 0 0 0.25rem rgba(5, 150, 105, 0.25);
+}
+.btn-success:disabled,
+.btn-success.disabled {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+  opacity: 0.65;
 }
 
 .btn svg {
@@ -186,9 +293,10 @@ body {
 
 .form-input:focus,
 .form-textarea:focus,
-.form-select:focus {
+.form-select:focus,
+.form-control:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
 .form-input:disabled,

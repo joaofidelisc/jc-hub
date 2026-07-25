@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import './InstructionsDetailed.css';
 
 const InstructionsDetailed = () => {
@@ -169,7 +170,7 @@ const InstructionsDetailed = () => {
                   className="copy-btn"
                   onClick={() => {
                     navigator.clipboard.writeText(webhookUrl);
-                    alert('URL copiada!');
+                    toast.success('URL copiada!');
                   }}
                   title="Copiar URL"
                 >

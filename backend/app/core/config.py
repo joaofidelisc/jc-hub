@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "super-secret-key-change-me")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION: int = 60 * 24 * 7 # 7 days
+    
+    # Superadmin
+    SUPERADMIN_EMAIL: str = os.getenv("SUPERADMIN_EMAIL", "joaov.cardozo@hotmail.com")
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="allow")
 
 settings = Settings()

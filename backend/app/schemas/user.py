@@ -14,6 +14,7 @@ class UserLogin(BaseModel):
 
 class UserOut(UserBase):
     id: int
+    role: str
     created_at: datetime
     
     class Config:

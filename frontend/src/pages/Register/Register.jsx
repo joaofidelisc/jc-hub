@@ -29,7 +29,7 @@ const Register = () => {
       toast.success('Cadastro realizado! Faça login para continuar.');
       navigate('/login', { replace: true });
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Falha ao cadastrar.');
+      toast.error(err?.response?.data?.detail || err?.response?.data?.error || 'Falha ao cadastrar.');
     } finally {
       setSubmitting(false);
     }

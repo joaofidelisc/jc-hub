@@ -17,6 +17,9 @@ import TermsOfUse from './pages/TermsOfUse/TermsOfUse';
 import MessengerSetup from './pages/MessengerSetup/MessengerSetup';
 import MessengerInstructions from './pages/MessengerSetup/Instructions';
 import MessengerInstructionsDetailed from './pages/MessengerSetup/InstructionsDetailed';
+import AdminDashboard from './pages/Admin/AdminDashboard';
+import CreatorChat from './pages/Creator/CreatorChat';
+import './App.css';
 
 function App() {
   return (
@@ -24,18 +27,21 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/criador-ia" element={<CreatorChat />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         
-        {/* Instagram Routes */}
-        <Route path="/instagram/setup" element={<InstagramSetup />} />
+        
+        {/* Instagram Routes (Blocked) */}
+        {/* <Route path="/instagram/setup" element={<InstagramSetup />} />
         <Route path="/instagram/oauth/callback" element={<OAuthCallback />} />
         <Route path="/instagram/instructions" element={<InstagramInstructions />} />
         <Route path="/instagram/instructions-detailed" element={<InstagramInstructionsDetailed />} />
-        <Route path="/instagram/keywords" element={<Keywords />} />
+        <Route path="/instagram/keywords" element={<Keywords />} /> */}
 
-        {/* Messenger Routes */}
-        <Route path="/messenger/setup" element={<MessengerSetup />} />
+        {/* Messenger Routes (Blocked) */}
+        {/* <Route path="/messenger/setup" element={<MessengerSetup />} />
         <Route path="/messenger/instructions" element={<MessengerInstructions />} />
-        <Route path="/messenger/instructions-detailed" element={<MessengerInstructionsDetailed />} />
+        <Route path="/messenger/instructions-detailed" element={<MessengerInstructionsDetailed />} /> */}
 
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
