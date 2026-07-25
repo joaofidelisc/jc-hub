@@ -109,10 +109,11 @@ const AppLayout = ({ children, title, subtitle, user }) => {
         <Link to="/" className="brand">
           <div className="brand-icon">
             <svg viewBox="0 0 24 24" fill="none">
-              <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="currentColor"/>
+              <rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor" opacity=".3"/>
+              <path d="M8 8V6a4 4 0 118 0v2M12 13v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <span className="brand-text">Simplifica.AI</span>
+          <span className="brand-text">JC Hub</span>
         </Link>
       </div>
 

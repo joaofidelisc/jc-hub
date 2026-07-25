@@ -33,7 +33,7 @@ const Register = () => {
   return (
     <div className="card p-4">
       <div className="card-body">
-        <a href="#" className="brand-logo">Simplifica.AI</a>
+        <a href="#" className="brand-logo">JC Hub</a>
         <h5 className="card-title text-center mb-4">Create Your Account</h5>
         <form onSubmit={handleRegister} noValidate>
           <div className="form-floating mb-3">

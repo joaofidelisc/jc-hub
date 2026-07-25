@@ -72,7 +72,7 @@ const ChooseSetup = () => {
             <svg className="brand-icon" viewBox="0 0 24 24" fill="none">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="currentColor"/>
             </svg>
-            {sidebarOpen && <span className="brand-text">Simplifica.AI</span>}
+            {sidebarOpen && <span className="brand-text">JC Hub</span>}
           </div>
         </div>
 

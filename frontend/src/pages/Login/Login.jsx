@@ -39,29 +39,30 @@ const Login = () => {
           <div className="auth-logo">
             <div className="auth-logo-icon">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="currentColor"/>
+                <rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor" opacity=".3"/>
+                <path d="M8 8V6a4 4 0 118 0v2M12 13v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <span>Simplifica.AI</span>
+            <span>JC Hub</span>
           </div>
 
           <div className="auth-hero">
-            <h2>Automatize seu engajamento no Instagram</h2>
-            <p>Configure respostas automáticas, palavras-chave e IA para atender seus seguidores 24/7.</p>
+            <h2>Sua central de automação inteligente</h2>
+            <p>Conecte Instagram, Messenger e IA para gerenciar e escalar o atendimento do seu negócio.</p>
           </div>
 
           <ul className="auth-features">
             <li>
               <span className="feature-dot"/>
-              Respostas automáticas para comentários
+              Respostas e mensagens automatizadas
             </li>
             <li>
               <span className="feature-dot"/>
-              Mensagens diretas com botões de link
+              Inteligência artificial integrada
             </li>
             <li>
               <span className="feature-dot"/>
-              IA (Gemini) para atendimento contextual
+              Plataforma central unificada
             </li>
           </ul>
         </div>

@@ -33,7 +33,7 @@ const PrivacyPolicy = () => {
 
               <Section id="visao-geral" title="Visão geral">
                 <p>
-                  No Simplifica.AI, sua privacidade é uma prioridade. Projetamos o serviço para operar com o
+                  No JC Hub, sua privacidade é uma prioridade. Projetamos o serviço para operar com o
                   mínimo possível de dados. Não coletamos, não armazenamos e não compartilhamos informações
                   pessoais de usuários. Também não utilizamos cookies de rastreamento ou tecnologias similares.
                 </p>

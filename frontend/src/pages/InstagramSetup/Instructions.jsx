@@ -53,7 +53,7 @@ const SetupInstructions = () => {
   return (
     <div className="ig-inst-page">
       <header className="ig-header">
-        <Link to="/" className="brand brand-link">Simplifica.AI</Link>
+        <Link to="/" className="brand brand-link">JC Hub</Link>
         <nav className="nav">
           <Link to="/" className="nav-link">Início</Link>
           <Link to="/profile" className="nav-link">Perfil</Link>

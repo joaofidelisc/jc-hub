@@ -22,8 +22,8 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: #4f46e5;
-  color: white;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -96,8 +96,8 @@
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--md-primary) 0%, var(--md-primary-dark) 100%);
+  color: var(--md-on-primary);
   display: flex;
   align-items: center;
   justify-content: center;

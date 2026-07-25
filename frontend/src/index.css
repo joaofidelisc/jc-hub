@@ -2,50 +2,65 @@
 
 /* ===== DESIGN SYSTEM ===== */
 :root {
-  /* Brand */
-  --primary: #4f46e5;
-  --primary-dark: #4338ca;
-  --primary-light: #6366f1;
-  --primary-bg: rgba(79, 70, 229, 0.08);
+  /* M3 Semantic Colors */
+  --md-primary: #0f766e;
+  --md-on-primary: #ffffff;
+  --md-primary-container: #ccfbf1;
+  --md-on-primary-container: #064e3b;
+  --md-secondary: #475569;
+  --md-surface: #ffffff;
+  --md-surface-variant: #f1f5f9;
+  --md-on-surface: #0f172a;
+  --md-on-surface-variant: #64748b;
+  --md-outline: #cbd5e1;
+  --md-outline-variant: #e2e8f0;
+  --md-error: #dc2626;
+  --md-success: #059669;
+  --md-warning: #d97706;
 
-  /* Semantic */
-  --success: #059669;
+  /* Legacy aliases to avoid breaking old CSS completely */
+  --primary: var(--md-primary);
+  --primary-dark: #0d6660;
+  --primary-light: #14b8a6;
+  --primary-bg: var(--md-primary-container);
+  
+  --success: var(--md-success);
   --success-bg: rgba(5, 150, 105, 0.08);
-  --warning: #d97706;
+  --warning: var(--md-warning);
   --warning-bg: rgba(217, 119, 6, 0.08);
-  --danger: #dc2626;
+  --danger: var(--md-error);
   --danger-bg: rgba(220, 38, 38, 0.08);
   --info: #0284c7;
 
   /* Backgrounds */
   --bg-page: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --bg-hover: #e2e8f0;
+  --bg-card: var(--md-surface);
+  --bg-subtle: var(--md-surface-variant);
+  --bg-hover: var(--md-outline-variant);
 
   /* Text */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-primary: var(--md-on-surface);
+  --text-secondary: var(--md-on-surface-variant);
   --text-muted: #94a3b8;
 
-  /* Border & Shadow */
-  --border: #e2e8f0;
-  --border-focus: #4f46e5;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -1px rgba(0,0,0,.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -2px rgba(0,0,0,.04);
-  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+  /* Border & Elevation (M3 Tone-based) */
+  --border: var(--md-outline-variant);
+  --border-focus: var(--md-primary);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 2px 6px rgba(0,0,0,.1);
+  --shadow-lg: 0 6px 16px rgba(0,0,0,.12);
+  --shadow-xl: 0 12px 24px rgba(0,0,0,.15);
 
   /* Layout */
   --sidebar-width: 260px;
   --sidebar-collapsed: 68px;
   --topbar-height: 64px;
 
-  /* Radius */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
+  /* M3 Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
   /* Transitions */

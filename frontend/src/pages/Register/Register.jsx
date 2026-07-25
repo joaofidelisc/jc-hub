@@ -43,15 +43,16 @@ const Register = () => {
           <div className="auth-logo">
             <div className="auth-logo-icon">
               <svg viewBox="0 0 24 24" fill="none">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="currentColor"/>
+                <rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor" opacity=".3"/>
+                <path d="M8 8V6a4 4 0 118 0v2M12 13v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
             </div>
-            <span>Simplifica.AI</span>
+            <span>JC Hub</span>
           </div>
 
           <div className="auth-hero">
-            <h2>Comece grátis hoje mesmo</h2>
-            <p>Crie sua conta em segundos e comece a automatizar o engajamento do seu Instagram de forma profissional.</p>
+            <h2>Crie sua conta em segundos</h2>
+            <p>Comece a automatizar o atendimento do seu negócio com inteligência artificial e integrações poderosas.</p>
           </div>
 
           <ul className="auth-features">

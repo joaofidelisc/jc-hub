@@ -24,14 +24,14 @@ const TermsOfUse = () => {
 
               <Section id="aceitacao" title="Aceitação dos termos">
                 <p>
-                  Ao utilizar o Simplifica.AI, você declara ter lido, compreendido e concordado com estes Termos
+                  Ao utilizar o JC Hub, você declara ter lido, compreendido e concordado com estes Termos
                   de Uso e com a nossa <Link to="/privacy">Política de Privacidade</Link>.
                 </p>
               </Section>
 
               <Section id="servico" title="Descrição do serviço">
                 <p>
-                  O Simplifica.AI é um serviço que auxilia na automação de interações em canais sociais.
+                  O JC Hub é um serviço que auxilia na automação de interações em canais sociais.
                   O uso deve sempre respeitar as regras das plataformas integradas e a legislação aplicável.
                 </p>
               </Section>

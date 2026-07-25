@@ -1,4 +1,4 @@
-# Simplifica.AI Frontend
+# JC Hub Frontend
 
 Dev:
 npm install

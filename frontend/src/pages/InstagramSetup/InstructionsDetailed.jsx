@@ -15,7 +15,7 @@ const InstructionsDetailed = () => {
   return (
     <div className="instructions-detailed-page">
       <header className="instructions-header">
-        <Link to="/" className="brand brand-link">Simplifica.AI</Link>
+        <Link to="/" className="brand brand-link">JC Hub</Link>
         <nav className="nav">
           <Link to="/" className="nav-link">Início</Link>
           <Link to="/instagram/setup" className="nav-link">Voltar para configuração</Link>
@@ -26,7 +26,7 @@ const InstructionsDetailed = () => {
         <div className="instructions-hero">
           <h1 className="hero-title">📘 Guia Completo: Configuração do Instagram</h1>
           <p className="hero-subtitle">
-            Siga este passo a passo para conectar sua conta do Instagram ao Simplifica.AI e começar a automatizar respostas.
+            Siga este passo a passo para conectar sua conta do Instagram ao JC Hub e começar a automatizar respostas.
           </p>
         </div>
 
@@ -135,7 +135,7 @@ const InstructionsDetailed = () => {
                 Após conectar, <strong>gere um token de acesso</strong>. Este será o seu <strong>PAGE_ACCESS_TOKEN</strong>.
               </p>
               <div className="alert alert-warning">
-                <strong>⚠️ Importante:</strong> Salve esse token em local seguro! Você precisará dele para configurar o Simplifica.AI.
+                <strong>⚠️ Importante:</strong> Salve esse token em local seguro! Você precisará dele para configurar o JC Hub.
               </div>
               <div className="step-image-wrapper">
                 <img
@@ -187,11 +187,11 @@ const InstructionsDetailed = () => {
           <section className="instruction-step">
             <div className="step-number">6</div>
             <div className="step-content">
-              <h2 className="step-title">Preencha os Dados no Simplifica.AI</h2>
+              <h2 className="step-title">Preencha os Dados no JC Hub</h2>
               <p className="step-description">
                 Agora volte para a{' '}
                 <Link to="/instagram/setup" className="internal-link">
-                  tela de configuração do Simplifica.AI
+                  tela de configuração do JC Hub
                 </Link>{' '}
                 e preencha:
               </p>

@@ -15,7 +15,7 @@ const InstructionsDetailed = () => {
   return (
     <div className="instructions-detailed-page">
       <header className="instructions-header">
-        <Link to="/" className="brand brand-link">Simplifica.AI</Link>
+        <Link to="/" className="brand brand-link">JC Hub</Link>
         <nav className="nav">
           <Link to="/" className="nav-link">Início</Link>
           <Link to="/messenger/setup" className="nav-link">Voltar para configuração</Link>
@@ -26,7 +26,7 @@ const InstructionsDetailed = () => {
         <div className="instructions-hero">
           <h1 className="hero-title">📘 Guia Completo: Configuração do Messenger</h1>
           <p className="hero-subtitle">
-            Siga este passo a passo para conectar sua Página do Facebook ao Simplifica.AI e começar a automatizar respostas no Messenger.
+            Siga este passo a passo para conectar sua Página do Facebook ao JC Hub e começar a automatizar respostas no Messenger.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ const InstructionsDetailed = () => {
                 </button>
               </div>
               <div className="step-description">
-                <p><strong>Token de verificação:</strong> Use o <strong>Verify Token</strong> que você irá definir na tela de configuração do Simplifica.AI.</p>
+                <p><strong>Token de verificação:</strong> Use o <strong>Verify Token</strong> que você irá definir na tela de configuração do JC Hub.</p>
               </div>
             </div>
           </section>
@@ -139,11 +139,11 @@ const InstructionsDetailed = () => {
           <section className="instruction-step">
             <div className="step-number">6</div>
             <div className="step-content">
-              <h2 className="step-title">Preencha os Dados no Simplifica.AI</h2>
+              <h2 className="step-title">Preencha os Dados no JC Hub</h2>
               <p className="step-description">
                 Agora volte para a{' '}
                 <Link to="/messenger/setup" className="internal-link">
-                  tela de configuração do Simplifica.AI
+                  tela de configuração do JC Hub
                 </Link>{' '}
                 e preencha:
               </p>
