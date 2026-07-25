@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import AppLayout from '../../components/AppLayout/AppLayout';
+import { useLayout } from '../../components/AppLayout/LayoutContext';
 import './Profile.css';
 
 const Profile = () => {
@@ -16,8 +16,9 @@ const Profile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [formData, setFormData] = useState({ name: '', email: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  useLayout('Perfil', 'Gerencie suas informações de conta', user);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -87,7 +88,7 @@ const Profile = () => {
   }
 
   return (
-    <AppLayout title="Perfil" subtitle="Gerencie suas informações de conta" user={user}>
+    <>
       {/* Profile hero */}
       <div className="profile-hero card">
         <div className="profile-avatar-lg">
@@ -212,7 +213,7 @@ const Profile = () => {
           </form>
         </div>
       )}
-    </AppLayout>
+    </>
   );
 };
 

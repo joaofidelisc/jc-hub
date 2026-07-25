@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import AppLayout from '../../components/AppLayout/AppLayout';
+import { useLayout } from '../../components/AppLayout/LayoutContext';
 import './InstagramSetup.css';
 
 const InstagramSetup = () => {
@@ -15,6 +15,8 @@ const InstagramSetup = () => {
   const [hasSavedTokens, setHasSavedTokens] = useState(false);
   const [modes, setModes] = useState('both');
   const [clientId, setClientId] = useState('');
+
+  useLayout('Instagram', 'Conecte sua conta do Instagram Profissional em um clique', user);
 
   useEffect(() => {
     const loadData = async () => {
@@ -93,11 +95,7 @@ const InstagramSetup = () => {
   }
 
   return (
-    <AppLayout
-      title="Instagram"
-      subtitle="Conecte sua conta do Instagram Profissional em um clique"
-      user={user}
-    >
+    <>
       <div className="progress-steps" style={{ marginBottom: '2rem' }}>
         {[
           { label: 'Conexão', desc: 'Login com Meta' },
@@ -210,7 +208,7 @@ const InstagramSetup = () => {
           </div>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 };
 

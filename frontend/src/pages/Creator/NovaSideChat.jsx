@@ -96,7 +96,7 @@ function NovaSideChat({ contextData }) {
               </svg>
             </div>
             <div className="message-content typing-dots">
-              <span>.</span><span>.</span><span>.</span>
+              <span></span><span></span><span></span>
             </div>
           </div>
         )}

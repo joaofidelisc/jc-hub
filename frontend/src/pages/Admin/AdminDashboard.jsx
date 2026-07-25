@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import AppLayout from '../../components/AppLayout/AppLayout';
+import { useLayout } from '../../components/AppLayout/LayoutContext';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -15,6 +15,8 @@ const AdminDashboard = () => {
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [emailToRemove, setEmailToRemove] = useState(null);
+
+  useLayout('Painel Admin', 'Gerencie o sistema e usuários', user);
 
   const fetchStats = async (token) => {
     try {
@@ -114,7 +116,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <AppLayout title="Painel Admin" subtitle="Gerencie o sistema e usuários" user={user}>
+    <>
       <div className="admin-dashboard">
         <div className="admin-tabs">
           <button 
@@ -255,7 +257,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
-    </AppLayout>
+    </>
   );
 };
 

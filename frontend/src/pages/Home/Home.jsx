@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import AppLayout from '../../components/AppLayout/AppLayout';
+import { useLayout } from '../../components/AppLayout/LayoutContext';
 import './Home.css';
 
 const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useLayout('Dashboard', 'Visão geral', user);
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,7 +39,7 @@ const Home = () => {
   }
 
   return (
-    <AppLayout title="Dashboard" subtitle="Visão geral" user={user}>
+    <>
       {/* Welcome */}
       <div className="welcome-bar">
         <div>
@@ -45,7 +47,7 @@ const Home = () => {
           <p className="welcome-sub">Bem-vindo(a) ao seu painel principal.</p>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 };
 

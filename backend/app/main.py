@@ -20,6 +20,7 @@ from app.models.ig_keyword import IgKeyword
 from app.models.ig_pending_dm import IgPendingDm
 from app.models.allowed_email import AllowedEmail
 from app.models.content_history import ContentHistory
+from app.models.creator_plan import CreatorPlan
 
 # Cria as tabelas no banco caso não existam
 Base.metadata.create_all(bind=engine)

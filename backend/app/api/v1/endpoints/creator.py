@@ -3,7 +3,7 @@ import uuid
 import re
 import requests
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.api.auth import get_current_user
 from app.models.user import User
 from app.models.content_history import ContentHistory
+from app.models.creator_plan import CreatorPlan
 
 router = APIRouter()
 
@@ -31,6 +32,7 @@ class CreatorRequest(BaseModel):
     networks: List[str]
     tone: str
     days: List[str]
+    week: str = "Semana Atual"
 
 def extract_json(raw_text: str) -> dict:
     try:
@@ -91,22 +93,42 @@ Estratégia obrigatória: explore ângulos INÉDITOS como casos práticos, mitos
 ━━━ REGRA DE ORIGINALIDADE (ID: {unique_id}) ━━━
 Gere conteúdo 100% original e criativo. Explore ângulos variados, casos reais, mitos e verdades, e situações cotidianas."""
 
+    today = datetime.now()
+    if req.week == "Próxima Semana":
+        reference_date = today + timedelta(days=7)
+    else:
+        reference_date = today
+        
+    start_of_week = reference_date - timedelta(days=reference_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    week_str = f"de {start_of_week.strftime('%d/%m/%Y')} a {end_of_week.strftime('%d/%m/%Y')}"
+
     system_prompt = f"""Seu nome é Nova. Você é a assistente pessoal de inteligência artificial do usuário, projetada para ser brilhante, amigável e estratégica.
 Sua missão atual é criar um planejamento semanal de conteúdo de alto nível para um {req.niche}.
 
-DATA ATUAL: {datetime.now().strftime('%d/%m/%Y')}. Use a ferramenta de busca para encontrar notícias ou tendências DESSA SEMANA relevantes para o nicho de {req.niche} e use isso para gerar ganchos virais.
+DATA ATUAL: {today.strftime('%d/%m/%Y')}. 
+PERÍODO DO PLANEJAMENTO: {req.week} ({week_str}). 
+Use a ferramenta de busca para encontrar notícias ou tendências DESSA SEMANA relevantes para o nicho de {req.niche} e use isso para gerar ganchos virais.
+Sugira datas reais dentro do período do planejamento e um horário estratégico baseado no horário de funcionamento.
 
 TOM DE VOZ DO CONTEÚDO A SER GERADO: {req.tone}
 PÚBLICO-ALVO: {req.persona}
 {anti_repetition_block}
 
-O conteúdo deve ser adaptado ESPECIFICAMENTE para as seguintes redes sociais: {', '.join(req.networks)}.
+O conteúdo deve ser adaptado ESPECIFICAMENTE para as seguintes redes sociais: {', '.join(req.networks)}. 
+ATENÇÃO: É ESTRITAMENTE OBRIGATÓRIO que o conteúdo seja DIFERENTE para cada rede social. 
+Se for TikTok ou Reels, gere um script narrado focado em retenção (linguagem rápida, visual, formato vídeo curto). 
+Se for LinkedIn, gere um artigo ou postagem reflexiva (linguagem corporativa e estruturada).
+Se for Instagram (Post/Carrossel), foque em dicas visuais curtas e impacto direto. 
+Nunca copie o mesmo texto ou formato para redes diferentes no mesmo dia.
 
 Responda EXCLUSIVAMENTE em um JSON válido com a seguinte estrutura:
 {{
   "planejamento": [
     {{
       "dia": "Segunda-feira",
+      "data_sugerida": "DD/MM/YYYY",
+      "horario_sugerido": "HH:MM (com breve justificativa)",
       "tema_central": "Título da ideia",
       "etapa_funil": "Topo (Atração) / Meio (Autoridade) / Fundo (Venda)",
       "noticia_tendencia_usada": "Breve descrição de qual tendência atual/notícia você usou para embasar esse post",
@@ -126,33 +148,53 @@ Horário de atendimento: {req.businessHours} (use isso de forma inteligente e re
 
 Gere o JSON."""
 
-    # Format prompt using Qwen ChatML syntax
-    prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n<|im_start|>user\n{user_prompt}<|im_end|>\n<|im_start|>assistant\n"
-
     payload = {
-        "model": "qwen2.5:7b",
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "temperature": 1.0 if recent_themes else 0.8
+        "systemInstruction": {
+            "role": "model",
+            "parts": [{"text": system_prompt}]
+        },
+        "contents": [{
+            "role": "user",
+            "parts": [{"text": user_prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 1.0 if recent_themes else 0.8,
+            "responseMimeType": "application/json"
         }
     }
 
+    print("=== GEMINI PAYLOAD ===")
+    print(json.dumps(payload, indent=2))
+    print("======================")
+
     try:
-        url = "http://201.23.79.153:11434/api/generate"
-        resp = requests.post(url, json=payload, timeout=120)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        
+        # O timeout voltou para um valor normal (60s) pois a API do Gemini é extremamente rápida
+        resp = requests.post(url, json=payload, timeout=60)
         
         if not resp.ok:
-            print("Ollama API Error:", resp.text)
-            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a IA local.")
+            print("Gemini API Error:", resp.text)
+            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a inteligência artificial (Gemini).")
             
         data = resp.json()
-        text = data.get("response", "")
         
+        try:
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError):
+            text = ""
+            
         if not text:
-            raise ValueError("Resposta vazia da IA local")
+            raise ValueError("Resposta vazia do Gemini")
+            
+        print("=== GEMINI RESPONSE ===")
+        print(text)
+        print("=======================")
             
         plan_json = extract_json(text)
+        
+        # Injeta o rótulo da semana para agrupamento
+        plan_json["week_label"] = week_str
         
         # Save generated themes to history
         for p in plan_json.get("planejamento", []):
@@ -160,10 +202,39 @@ Gere o JSON."""
             if tema:
                 new_history = ContentHistory(user_id=current_user.id, theme=tema[:500])
                 db.add(new_history)
-        db.commit()
         
-        return plan_json
+        # Check if a plan for this week already exists to overwrite it
+        existing_plans = db.query(CreatorPlan).filter(CreatorPlan.user_id == current_user.id).all()
+        plan_to_overwrite = None
+        for ep in existing_plans:
+            if ep.plan_json.get("week_label") == week_str:
+                plan_to_overwrite = ep
+                break
+                
+        if plan_to_overwrite:
+            plan_to_overwrite.plan_json = plan_json
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(plan_to_overwrite, "plan_json")
+            db.commit()
+            db.refresh(plan_to_overwrite)
+            return {
+                "id": plan_to_overwrite.id,
+                "created_at": plan_to_overwrite.created_at.isoformat(),
+                "plan_json": plan_json
+            }
+        else:
+            new_plan = CreatorPlan(user_id=current_user.id, plan_json=plan_json)
+            db.add(new_plan)
+            db.commit()
+            db.refresh(new_plan)
+            return {
+                "id": new_plan.id,
+                "created_at": new_plan.created_at.isoformat(),
+                "plan_json": plan_json
+            }
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Exception in generate_content: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro interno ao gerar conteúdo.")
@@ -180,42 +251,77 @@ Seja criativa, analítica e muito amigável (use emojis ✨).
 Você NÃO deve fazer perguntas infinitas, apenas responda as dúvidas do usuário de forma executiva e brilhante.
 """
 
-        # Build history for Qwen using ChatML prompt
-        prompt = f"<|im_start|>system\n{system_prompt}<|im_end|>\n"
-        # Do not include hardcoded Nova greeting for the sidecar history if we want a fresh start,
-        # but the sidecar frontend includes its own greeting in `req.messages`, so we just loop them.
-        
+        contents = []
         for msg in req.messages:
-            if msg.role == "user":
-                prompt += f"<|im_start|>user\n{msg.text}<|im_end|>\n"
-            else:
-                prompt += f"<|im_start|>assistant\n{msg.text}<|im_end|>\n"
-        
-        # Add final prompt trigger for the model to reply
-        prompt += "<|im_start|>assistant\n"
+            role = "user" if msg.role == "user" else "model"
+            contents.append({
+                "role": role,
+                "parts": [{"text": msg.text}]
+            })
             
         payload = {
-            "model": "qwen2.5:7b",
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.5,
-                "stop": ["<|im_end|>"]
+            "systemInstruction": {
+                "role": "model",
+                "parts": [{"text": system_prompt}]
+            },
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.5
             }
         }
         
-        url = "http://201.23.79.153:11434/api/generate"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
         resp = requests.post(url, json=payload, timeout=60)
         
         if not resp.ok:
-            print("Ollama API Error:", resp.text)
-            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a IA local.")
+            print("Gemini API Error:", resp.text)
+            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a inteligência artificial (Gemini).")
             
         data = resp.json()
-        response_text = data.get("response", "").strip()
+        try:
+            response_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except (KeyError, IndexError):
+            response_text = ""
         
         return {"response": response_text}
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Exception in chat_nova: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro de comunicação com a Nova.")
+
+@router.get("/history")
+def get_creator_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        plans = db.query(CreatorPlan).filter(CreatorPlan.user_id == current_user.id).order_by(CreatorPlan.created_at.desc()).all()
+        return [{"id": p.id, "created_at": p.created_at.isoformat(), "plan_json": p.plan_json} for p in plans]
+    except Exception as e:
+        print(f"Exception in get_creator_history: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar histórico.")
+@router.post("/plan/{plan_id}/toggle/{post_index}")
+def toggle_post_status(plan_id: int, post_index: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        plan = db.query(CreatorPlan).filter(CreatorPlan.id == plan_id, CreatorPlan.user_id == current_user.id).first()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plano não encontrado.")
+            
+        plan_json = plan.plan_json
+        if "planejamento" in plan_json and post_index < len(plan_json["planejamento"]):
+            current_status = plan_json["planejamento"][post_index].get("feito", False)
+            plan_json["planejamento"][post_index]["feito"] = not current_status
+            
+            # Use flag_modified so SQLAlchemy knows the JSON mutated
+            from sqlalchemy.orm.attributes import flag_modified
+            plan.plan_json = plan_json
+            flag_modified(plan, "plan_json")
+            db.commit()
+            
+            return {"status": "success", "feito": not current_status, "plan_json": plan_json}
+        else:
+            raise HTTPException(status_code=400, detail="Índice de postagem inválido.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Exception in toggle_post_status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar status.")

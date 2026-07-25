@@ -18,7 +18,7 @@
     height: 100vh;
     z-index: 300;
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* ===== DESKTOP SIDEBAR ===== */
@@ -208,6 +208,7 @@
     color: var(--text-muted);
     transition: var(--transition);
     box-shadow: var(--shadow-sm);
+    z-index: 100;
 }
 
 .sidebar-collapse-btn:hover {

@@ -13,6 +13,8 @@ import InstagramInstructionsDetailed from './pages/InstagramSetup/InstructionsDe
 import Keywords from './pages/InstagramSetup/Keywords';
 import PrivacyPolicy from './pages/PrivacyPolicy/PrivacyPolicy';
 import TermsOfUse from './pages/TermsOfUse/TermsOfUse';
+import { LayoutProvider } from './components/AppLayout/LayoutContext';
+import AuthenticatedLayout from './components/AppLayout/AuthenticatedLayout';
 
 import MessengerSetup from './pages/MessengerSetup/MessengerSetup';
 import MessengerInstructions from './pages/MessengerSetup/Instructions';
@@ -23,34 +25,37 @@ import './App.css';
 
 function App() {
   return (
-    <div>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/criador-ia" element={<CreatorChat />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        
-        
-        {/* Instagram Routes (Blocked) */}
-        {/* <Route path="/instagram/setup" element={<InstagramSetup />} />
-        <Route path="/instagram/oauth/callback" element={<OAuthCallback />} />
-        <Route path="/instagram/instructions" element={<InstagramInstructions />} />
-        <Route path="/instagram/instructions-detailed" element={<InstagramInstructionsDetailed />} />
-        <Route path="/instagram/keywords" element={<Keywords />} /> */}
+    <LayoutProvider>
+      <div>
+        <Routes>
+          <Route element={<AuthenticatedLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/criador-ia" element={<CreatorChat />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            
+            {/* Instagram Routes (Blocked) */}
+            {/* <Route path="/instagram/setup" element={<InstagramSetup />} />
+            <Route path="/instagram/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/instagram/instructions" element={<InstagramInstructions />} />
+            <Route path="/instagram/instructions-detailed" element={<InstagramInstructionsDetailed />} />
+            <Route path="/instagram/keywords" element={<Keywords />} /> */}
 
-        {/* Messenger Routes (Blocked) */}
-        {/* <Route path="/messenger/setup" element={<MessengerSetup />} />
-        <Route path="/messenger/instructions" element={<MessengerInstructions />} />
-        <Route path="/messenger/instructions-detailed" element={<MessengerInstructionsDetailed />} /> */}
+            {/* Messenger Routes (Blocked) */}
+            {/* <Route path="/messenger/setup" element={<MessengerSetup />} />
+            <Route path="/messenger/instructions" element={<MessengerInstructions />} />
+            <Route path="/messenger/instructions-detailed" element={<MessengerInstructionsDetailed />} /> */}
+          </Route>
 
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/terms" element={<TermsOfUse />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-      <ToastContainer />
-    </div>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfUse />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+        <ToastContainer />
+      </div>
+    </LayoutProvider>
   );
 }
 

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { toast } from 'react-toastify';
 import './Creator.css'; 
 
@@ -12,11 +13,37 @@ function CreatorForm({ onSubmit, loading }) {
     businessHours: '',
     tone: 'Profissional e Amigável',
     networks: [],
-    days: []
+    days: [],
+    week: 'Semana Atual'
   });
 
   const availableNetworks = ['Instagram', 'Facebook', 'LinkedIn', 'Twitter', 'TikTok'];
   const availableDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+  useEffect(() => {
+    // Tenta descobrir se já existe um plano para a semana atual
+    const checkCurrentWeek = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const { data } = await axios.get('/api/creator/history', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Calcula qual seria a string da semana atual (mesma lógica do backend simplificada)
+        // Como o backend salva "de DD/MM/YYYY a DD/MM/YYYY", a forma mais simples 
+        // é checar se o plano mais recente tem a data de hoje nele, mas como não temos 
+        // a lógica exata de datas no frontend facilmente, podemos assumir que se houver 
+        // planos na lista, o último criado provavelmente foi desta semana. 
+        // Para ser preciso: se tem qualquer plano, assume Próxima Semana para evitar sobrescrever acidentalmente.
+        if (data && data.length > 0) {
+          setFormData(prev => ({ ...prev, week: 'Próxima Semana' }));
+        }
+      } catch (err) {
+        // Ignora erros silenciados
+      }
+    };
+    checkCurrentWeek();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -128,7 +155,7 @@ function CreatorForm({ onSubmit, loading }) {
               <input 
                 type="text" 
                 name="persona" 
-                placeholder="Ex: Mães de 25 a 40 anos, Empreendedores..." 
+                placeholder="Ex: Trabalhadores CLT de 25 a 45 anos, Empreendedores locais..." 
                 value={formData.persona} 
                 onChange={handleChange} 
                 onKeyPress={(e) => e.key === 'Enter' && handleNext()}
@@ -178,18 +205,48 @@ function CreatorForm({ onSubmit, loading }) {
           )}
 
           {step === 5 && (
-            <div className="checkbox-grid">
-              {availableDays.map(day => (
-                <label key={day} className={`checkbox-label ${formData.days.includes(day) ? 'active' : ''}`}>
-                  <input 
-                    type="checkbox" 
-                    checked={formData.days.includes(day)}
-                    onChange={() => handleCheckbox('days', day)}
-                  />
-                  <span>{day}</span>
-                </label>
-              ))}
-            </div>
+            <>
+              <div className="form-group mb-4">
+                <label>Para qual semana?</label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <label className={`checkbox-label ${formData.week === 'Semana Atual' ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center' }}>
+                    <input 
+                      type="radio" 
+                      name="week" 
+                      value="Semana Atual"
+                      checked={formData.week === 'Semana Atual'}
+                      onChange={handleChange}
+                      style={{ display: 'none' }}
+                    />
+                    <span>Semana Atual</span>
+                  </label>
+                  <label className={`checkbox-label ${formData.week === 'Próxima Semana' ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center' }}>
+                    <input 
+                      type="radio" 
+                      name="week" 
+                      value="Próxima Semana"
+                      checked={formData.week === 'Próxima Semana'}
+                      onChange={handleChange}
+                      style={{ display: 'none' }}
+                    />
+                    <span>Próxima Semana</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="checkbox-grid">
+                {availableDays.map(day => (
+                  <label key={day} className={`checkbox-label ${formData.days.includes(day) ? 'active' : ''}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={formData.days.includes(day)}
+                      onChange={() => handleCheckbox('days', day)}
+                    />
+                    <span>{day}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
