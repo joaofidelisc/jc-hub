@@ -1,66 +1,75 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ===== DESIGN SYSTEM ===== */
-:root {
-  /* M3 Semantic Colors */
-  --md-primary: #0f766e;
+/* ===== DESIGN SYSTEM (Purple Template Style) ===== */
+:root, .light-theme, .dark-theme {
+  /* Light Mode */
+  --md-primary: #0B6D63;
   --md-on-primary: #ffffff;
-  --md-primary-container: #ccfbf1;
-  --md-on-primary-container: #064e3b;
-  --md-secondary: #475569;
+  --md-primary-container: #f3f4f6;
+  --md-on-primary-container: #111827;
+  
   --md-surface: #ffffff;
-  --md-surface-variant: #f1f5f9;
-  --md-on-surface: #0f172a;
-  --md-on-surface-variant: #64748b;
-  --md-outline: #cbd5e1;
-  --md-outline-variant: #e2e8f0;
-  --md-error: #dc2626;
-  --md-success: #059669;
-  --md-warning: #d97706;
+  --md-surface-variant: #f8f9fa;
+  --md-on-surface: #343a40;
+  --md-on-surface-variant: #6c757d;
+  --md-outline: #e5e7eb;
+  --md-outline-variant: #e5e7eb;
+  
+  --md-error: #fe7096;
+  --md-success: #1bcfb4;
+  --md-warning: #fed713;
+  --md-info: #198ae3;
 
-  /* Legacy aliases to avoid breaking old CSS completely */
   --primary: var(--md-primary);
-  --primary-dark: #0d6660;
-  --primary-light: #14b8a6;
-  --primary-bg: var(--md-primary-container);
+  --primary-dark: #074b44;
+  --primary-light: #129c8e;
+  --primary-bg: rgba(11, 109, 99, 0.1);
+  --primary-color: var(--primary);
   
   --success: var(--md-success);
-  --success-bg: rgba(5, 150, 105, 0.08);
+  --success-bg: rgba(27, 207, 180, 0.1);
   --warning: var(--md-warning);
-  --warning-bg: rgba(217, 119, 6, 0.08);
+  --warning-bg: rgba(254, 215, 19, 0.1);
   --danger: var(--md-error);
-  --danger-bg: rgba(220, 38, 38, 0.08);
-  --info: #0284c7;
+  --danger-bg: rgba(254, 112, 150, 0.1);
+  --info: var(--md-info);
 
   /* Backgrounds */
-  --bg-page: #f8fafc;
+  --bg-page: #f2edf3;
   --bg-card: var(--md-surface);
   --bg-subtle: var(--md-surface-variant);
-  --bg-hover: var(--md-outline-variant);
+  --bg-hover: rgba(0, 0, 0, 0.03);
 
   /* Text */
   --text-primary: var(--md-on-surface);
   --text-secondary: var(--md-on-surface-variant);
-  --text-muted: #94a3b8;
+  --text-muted: #9ca3af;
 
-  /* Border & Elevation (M3 Tone-based) */
-  --border: var(--md-outline-variant);
-  --border-focus: var(--md-primary);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.08);
-  --shadow-md: 0 2px 6px rgba(0,0,0,.1);
-  --shadow-lg: 0 6px 16px rgba(0,0,0,.12);
-  --shadow-xl: 0 12px 24px rgba(0,0,0,.15);
+  /* Border & Elevation */
+  --border: var(--md-outline);
+  --border-color: var(--md-outline);
+  --border-focus: rgba(11, 109, 99, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+
+  /* Gradients */
+  --grad-primary: linear-gradient(to right, #129c8e, #0B6D63);
+  --grad-danger: linear-gradient(to right, #ffbf96, #fe7096);
+  --grad-info: linear-gradient(to right, #90caf9, #047edf);
+  --grad-success: linear-gradient(to right, #84d9d2, #07cdae);
 
   /* Layout */
   --sidebar-width: 260px;
-  --sidebar-collapsed: 68px;
-  --topbar-height: 64px;
+  --sidebar-collapsed: 70px;
+  --topbar-height: 70px;
 
-  /* M3 Radius */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  /* Radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
   --radius-full: 9999px;
 
   /* Transitions */
@@ -82,44 +91,6 @@
 
 h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote, dl, dd {
   margin: 0;
-}
-
-/* ===== DARK THEME (POLY) ===== */
-.dark-theme {
-  /* Adapted Primary Colors for Dark Backgrounds */
-  --md-primary: #14b8a6; /* Bright Teal for visibility */
-  --md-on-primary: #042f2e; /* Dark Teal for contrast on primary */
-  --md-primary-container: #0f766e; /* Muted Teal for backgrounds */
-  --md-on-primary-container: #ccfbf1;
-  
-  --md-surface: #131b2e;
-  --md-surface-variant: #1e293b;
-  --md-on-surface: #f8fafc;
-  --md-on-surface-variant: #94a3b8;
-  --md-outline-variant: #1e293b;
-  --md-outline: #334155;
-
-  --bg-page: #0b101b;
-  --bg-card: var(--md-surface);
-  --bg-subtle: var(--md-surface-variant);
-  --bg-hover: rgba(255, 255, 255, 0.05);
-
-  /* Re-assign legacy aliases to use the new dark md-primary */
-  --primary: var(--md-primary);
-  --primary-dark: #0f766e;
-  --primary-light: #2dd4bf;
-  --primary-bg: rgba(20, 184, 166, 0.1);
-
-  --text-primary: var(--md-on-surface);
-  --text-secondary: var(--md-on-surface-variant);
-  --text-muted: #64748b;
-
-  --border: var(--md-outline-variant);
-  --border-focus: var(--md-primary);
-  
-  --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
-  --shadow-md: 0 4px 6px rgba(0,0,0,.4);
-  --shadow-lg: 0 10px 15px rgba(0,0,0,.5);
 }
 
 body {
@@ -168,22 +139,22 @@ a:hover {
 .btn-primary {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--md-on-primary);
 }
 .btn-primary:hover:not(:disabled),
 .btn-primary:focus:not(:disabled) {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
-  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.35);
+  box-shadow: 0 4px 12px var(--primary-bg);
   transform: translateY(-1px);
-  color: #fff;
+  color: var(--md-on-primary);
 }
 .btn-primary:active:not(:disabled) {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
   transform: translateY(0);
   box-shadow: none;
-  color: #fff;
+  color: var(--md-on-primary);
 }
 .btn-primary:focus {
   box-shadow: 0 0 0 0.25rem rgba(15, 118, 110, 0.25);
@@ -192,7 +163,7 @@ a:hover {
 .btn-primary.disabled {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--md-on-primary);
   opacity: 0.65;
 }
 

@@ -91,6 +91,15 @@ def update_profile(user_in: UserUpdate, db: Session = Depends(get_db), current_u
     db.commit()
     return {"message": "Profile updated"}
 
+class CreatorSettingsUpdate(BaseModel):
+    settings: dict
+
+@router.put("/profile/creator_settings")
+def update_creator_settings(payload: CreatorSettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.creator_settings = payload.settings
+    db.commit()
+    return {"message": "Creator settings updated"}
+
 @router.put("/profile/password")
 def update_password(payload: PasswordUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     if not verify_password(payload.currentPassword, current_user.password):

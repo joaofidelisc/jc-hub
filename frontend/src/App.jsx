@@ -21,6 +21,7 @@ import MessengerInstructions from './pages/MessengerSetup/Instructions';
 import MessengerInstructionsDetailed from './pages/MessengerSetup/InstructionsDetailed';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import CreatorChat from './pages/Creator/CreatorChat';
+import Planejamentos from './pages/Creator/Planejamentos';
 import './App.css';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/criador-ia" element={<CreatorChat />} />
+            <Route path="/planejamentos" element={<Planejamentos />} />
             <Route path="/admin" element={<AdminDashboard />} />
             
             {/* Instagram Routes (Blocked) */}

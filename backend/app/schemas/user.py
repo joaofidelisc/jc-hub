@@ -15,6 +15,7 @@ class UserLogin(BaseModel):
 class UserOut(UserBase):
     id: int
     role: str
+    creator_settings: dict | None = None
     created_at: datetime
     
     class Config:

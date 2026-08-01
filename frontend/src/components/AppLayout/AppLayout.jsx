@@ -31,6 +31,18 @@ const AppLayout = ({ children, title, subtitle, user }) => {
       ),
     },
     {
+      path: '/planejamentos',
+      label: 'Planejamentos',
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+      ),
+    },
+    {
       path: '/profile',
       label: 'Perfil',
       icon: (
@@ -60,6 +72,9 @@ const AppLayout = ({ children, title, subtitle, user }) => {
     return stored !== null ? stored === 'true' : true;
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'dark';
+  });
 
   const toggleDesktopSidebar = () => {
     setSidebarOpen(prev => {
@@ -71,6 +86,24 @@ const AppLayout = ({ children, title, subtitle, user }) => {
   const toggleMobileSidebar = () => {
     setMobileOpen(prev => !prev);
   };
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const newTheme = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
+    });
+  };
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark-theme');
+      document.documentElement.classList.remove('light-theme');
+    } else {
+      document.documentElement.classList.add('light-theme');
+      document.documentElement.classList.remove('dark-theme');
+    }
+  }, [theme]);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -97,18 +130,29 @@ const AppLayout = ({ children, title, subtitle, user }) => {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  const BrandLogo = () => (
+    <Link to="/" className="brand">
+      <div className="brand-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
+        </svg>
+      </div>
+      <span className="brand-text">JC Hub</span>
+    </Link>
+  );
+
   const SidebarContent = () => (
     <>
-      <div className="sidebar-header">
-        <Link to="/" className="brand">
-          <div className="brand-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor" opacity=".3"/>
-              <path d="M8 8V6a4 4 0 118 0v2M12 13v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <span className="brand-text">JC Hub</span>
-        </Link>
+      <div className="sidebar-profile">
+        <div className="sidebar-profile-avatar">
+          {user?.name?.charAt(0).toUpperCase() || 'U'}
+        </div>
+        <div className="sidebar-profile-info">
+          <span className="sidebar-profile-name">{user?.name || 'Usuário'}</span>
+          <span className="sidebar-profile-role">{user?.role === 'superadmin' ? 'Super Admin' : 'Criador'}</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav">
@@ -124,71 +168,89 @@ const AppLayout = ({ children, title, subtitle, user }) => {
           </Link>
         ))}
       </nav>
-
-      <div className="sidebar-footer">
-        <button className="nav-item logout-btn" onClick={handleLogout} title={!sidebarOpen ? 'Sair' : undefined}>
-          <span className="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
-            </svg>
-          </span>
-          <span className="nav-label">Sair</span>
-        </button>
-      </div>
     </>
   );
 
   return (
-    <div className="app-layout dark-theme">
-      {/* Desktop Sidebar */}
-      <aside className={`sidebar desktop-sidebar ${sidebarOpen ? 'expanded' : 'collapsed'}`}>
-        <SidebarContent />
-        <button className="sidebar-collapse-btn" onClick={toggleDesktopSidebar} aria-label="Toggle sidebar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {sidebarOpen
-              ? <path d="M15 18l-6-6 6-6"/>
-              : <path d="M9 18l6-6-6-6"/>
-            }
-          </svg>
-        </button>
-      </aside>
-
-      {/* Mobile Sidebar */}
-      {mobileOpen && (
-        <div className="mobile-overlay" onClick={() => setMobileOpen(false)} aria-label="Close sidebar"/>
-      )}
-      <aside className={`sidebar mobile-sidebar ${mobileOpen ? 'open' : ''}`}>
-        <SidebarContent />
-      </aside>
-
-      {/* Main */}
-      <div className={`main-wrapper ${sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
-        <header className="topbar">
-          {/* Mobile menu toggle */}
+    <div className="app-layout">
+      <header className="topbar">
+        <div className="topbar-brand-container">
+          <BrandLogo />
+        </div>
+        
+        <div className="topbar-main">
           <button className="mobile-menu-btn" onClick={toggleMobileSidebar} aria-label="Open menu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M3 12h18M3 6h18M3 18h18"/>
             </svg>
           </button>
+          <div className="topbar-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" placeholder="Buscar projetos..." />
+          </div>
 
-          <div className="topbar-title">
-            {title && <h1 className="page-title">{title}</h1>}
+          <div className="topbar-actions">
+            {user && (
+              <div className="topbar-user-dropdown">
+                <div className="user-avatar-small">
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="user-name-small">{user.name?.split(' ')[0]}</span>
+              </div>
+            )}
+            
+            <button className="icon-btn" onClick={handleLogout} title="Sair">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="app-body">
+        {/* Desktop Sidebar */}
+        <aside className={`sidebar desktop-sidebar ${sidebarOpen ? 'expanded' : 'collapsed'}`}>
+          <SidebarContent />
+          <button className="sidebar-collapse-btn desktop-only" onClick={toggleDesktopSidebar} aria-label="Toggle sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarOpen
+                ? <path d="M15 18l-6-6 6-6"/>
+                : <path d="M9 18l6-6-6-6"/>
+              }
+            </svg>
+          </button>
+        </aside>
+
+        {/* Mobile Sidebar */}
+        {mobileOpen && (
+          <div className="mobile-overlay" onClick={() => setMobileOpen(false)} aria-label="Close sidebar"/>
+        )}
+        <aside className={`sidebar mobile-sidebar ${mobileOpen ? 'open' : ''}`}>
+          <SidebarContent />
+        </aside>
+
+        {/* Main Content */}
+        <div className={`main-wrapper ${sidebarOpen ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+          <div className="page-header">
+            {title && (
+              <div className="page-title-group">
+                <span className="page-title-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                </span>
+                <h1 className="page-title">{title}</h1>
+              </div>
+            )}
             {subtitle && <p className="page-subtitle">{subtitle}</p>}
           </div>
 
-          {user && (
-            <Link to="/profile" className="topbar-user">
-              <div className="user-avatar">
-                {user.name?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <span className="user-name">{user.name}</span>
-            </Link>
-          )}
-        </header>
-
-        <main className="page-content">
-          {children}
-        </main>
+          <main className="page-content">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

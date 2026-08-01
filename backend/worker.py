@@ -8,7 +8,7 @@ from app.core.redis import redis_client, IG_COMMENTS_QUEUE, IG_DMS_QUEUE, MESSEN
 from app.models.user_integration import UserIntegration
 from app.models.ig_keyword import IgKeyword
 from app.models.ig_pending_dm import IgPendingDm
-from app.services.gemini import generate_ai_reply
+from app.services.ai_service import generate_ai_reply
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 

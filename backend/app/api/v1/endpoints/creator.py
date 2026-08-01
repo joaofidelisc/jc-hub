@@ -3,6 +3,7 @@ import uuid
 import re
 import requests
 from typing import List, Optional
+from openai import OpenAI
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -63,8 +64,10 @@ def generate_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if not settings.GEMINI_API_KEY:
-        raise HTTPException(status_code=503, detail="Gemini API Key não configurada.")
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="OpenAI API Key não configurada.")
+        
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
     # Get last 30 themes
     history = db.query(ContentHistory).filter(
@@ -93,6 +96,30 @@ Estratégia obrigatória: explore ângulos INÉDITOS como casos práticos, mitos
 ━━━ REGRA DE ORIGINALIDADE (ID: {unique_id}) ━━━
 Gere conteúdo 100% original e criativo. Explore ângulos variados, casos reais, mitos e verdades, e situações cotidianas."""
 
+    # Get last 2 plans for strategic continuation
+    recent_plans = db.query(CreatorPlan).filter(
+        CreatorPlan.user_id == current_user.id
+    ).order_by(CreatorPlan.created_at.desc()).limit(2).all()
+    
+    past_strategy_block = ""
+    if recent_plans:
+        strategy_texts = []
+        for p in reversed(recent_plans):
+            plan_json = p.plan_json
+            week_lbl = plan_json.get("week_label", "")
+            posts = plan_json.get("planejamento", [])
+            summaries = [f"  - [{post.get('dia')}] {post.get('etapa_funil', '')} - {post.get('tema_central')}" for post in posts]
+            strategy_texts.append(f"Semana ({week_lbl}):\n" + "\n".join(summaries))
+        
+        past_str = "\n\n".join(strategy_texts)
+        past_strategy_block = f"""
+━━━ CONTINUIDADE ESTRATÉGICA ━━━
+O usuário já gerou os seguintes planejamentos recentemente:
+{past_str}
+
+Sua tarefa é dar CONTINUIDADE a essa estratégia. 
+NÃO repita os mesmos temas. Crie uma evolução lógica. Construa uma narrativa conectada com o que já foi postado!"""
+
     today = datetime.now()
     if req.week == "Próxima Semana":
         reference_date = today + timedelta(days=7)
@@ -114,6 +141,7 @@ Sugira datas reais dentro do período do planejamento e um horário estratégico
 TOM DE VOZ DO CONTEÚDO A SER GERADO: {req.tone}
 PÚBLICO-ALVO: {req.persona}
 {anti_repetition_block}
+{past_strategy_block}
 
 O conteúdo deve ser adaptado ESPECIFICAMENTE para as seguintes redes sociais: {', '.join(req.networks)}. 
 ATENÇÃO: É ESTRITAMENTE OBRIGATÓRIO que o conteúdo seja DIFERENTE para cada rede social. 
@@ -148,46 +176,26 @@ Horário de atendimento: {req.businessHours} (use isso de forma inteligente e re
 
 Gere o JSON."""
 
-    payload = {
-        "systemInstruction": {
-            "role": "model",
-            "parts": [{"text": system_prompt}]
-        },
-        "contents": [{
-            "role": "user",
-            "parts": [{"text": user_prompt}]
-        }],
-        "generationConfig": {
-            "temperature": 1.0 if recent_themes else 0.8,
-            "responseMimeType": "application/json"
-        }
-    }
-
-    print("=== GEMINI PAYLOAD ===")
-    print(json.dumps(payload, indent=2))
+    print("=== OPENAI PAYLOAD ===")
+    print(f"System: {system_prompt[:100]}...\nUser: {user_prompt[:100]}...")
     print("======================")
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=1.0 if recent_themes else 0.8,
+            response_format={"type": "json_object"}
+        )
         
-        # O timeout voltou para um valor normal (60s) pois a API do Gemini é extremamente rápida
-        resp = requests.post(url, json=payload, timeout=60)
-        
-        if not resp.ok:
-            print("Gemini API Error:", resp.text)
-            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a inteligência artificial (Gemini).")
-            
-        data = resp.json()
-        
-        try:
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError):
-            text = ""
-            
+        text = response.choices[0].message.content
         if not text:
-            raise ValueError("Resposta vazia do Gemini")
+            raise ValueError("Resposta vazia da OpenAI")
             
-        print("=== GEMINI RESPONSE ===")
+        print("=== OPENAI RESPONSE ===")
         print(text)
         print("=======================")
             
@@ -242,6 +250,11 @@ Gere o JSON."""
 @router.post("/chat")
 async def chat_nova(req: ChatRequest, current_user: User = Depends(get_current_user)):
     try:
+        if not settings.OPENAI_API_KEY:
+            raise HTTPException(status_code=503, detail="OpenAI API Key não configurada.")
+            
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
         system_prompt = f"""Você é a Nova, uma consultora especialista em redes sociais e criação de conteúdo.
 O usuário acabou de gerar o seguinte planejamento estratégico para a sua marca:
 {req.contextData if hasattr(req, 'contextData') else 'Não informado'}
@@ -251,37 +264,18 @@ Seja criativa, analítica e muito amigável (use emojis ✨).
 Você NÃO deve fazer perguntas infinitas, apenas responda as dúvidas do usuário de forma executiva e brilhante.
 """
 
-        contents = []
+        messages = [{"role": "system", "content": system_prompt}]
         for msg in req.messages:
-            role = "user" if msg.role == "user" else "model"
-            contents.append({
-                "role": role,
-                "parts": [{"text": msg.text}]
-            })
+            role = "user" if msg.role == "user" else "assistant"
+            messages.append({"role": role, "content": msg.text})
             
-        payload = {
-            "systemInstruction": {
-                "role": "model",
-                "parts": [{"text": system_prompt}]
-            },
-            "contents": contents,
-            "generationConfig": {
-                "temperature": 0.5
-            }
-        }
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.5
+        )
         
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
-        resp = requests.post(url, json=payload, timeout=60)
-        
-        if not resp.ok:
-            print("Gemini API Error:", resp.text)
-            raise HTTPException(status_code=502, detail="Erro ao se comunicar com a inteligência artificial (Gemini).")
-            
-        data = resp.json()
-        try:
-            response_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except (KeyError, IndexError):
-            response_text = ""
+        response_text = response.choices[0].message.content.strip()
         
         return {"response": response_text}
         
@@ -290,6 +284,25 @@ Você NÃO deve fazer perguntas infinitas, apenas responda as dúvidas do usuár
     except Exception as e:
         print(f"Exception in chat_nova: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro de comunicação com a Nova.")
+
+@router.get("/check-plan")
+def check_creator_plan(week: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    today = datetime.now()
+    if week == "Próxima Semana":
+        reference_date = today + timedelta(days=7)
+    else:
+        reference_date = today
+        
+    start_of_week = reference_date - timedelta(days=reference_date.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    week_str = f"de {start_of_week.strftime('%d/%m/%Y')} a {end_of_week.strftime('%d/%m/%Y')}"
+
+    existing_plans = db.query(CreatorPlan).filter(CreatorPlan.user_id == current_user.id).all()
+    for ep in existing_plans:
+        if ep.plan_json.get("week_label") == week_str:
+            return {"exists": True, "label": week_str}
+    
+    return {"exists": False, "label": week_str}
 
 @router.get("/history")
 def get_creator_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

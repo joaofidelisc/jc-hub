@@ -19,13 +19,13 @@ function NovaSideChat({ contextData }) {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = async () => {
-    if (!inputValue.trim() || isTyping) return;
+  const handleSend = async (forcedText = null) => {
+    const textToSend = forcedText || inputValue;
+    if (!textToSend.trim() || isTyping) return;
 
-    const userMessage = inputValue.trim();
-    setInputValue('');
+    if (!forcedText) setInputValue('');
     
-    const newMessages = [...messages, { sender: 'user', text: userMessage }];
+    const newMessages = [...messages, { sender: 'user', text: textToSend.trim() }];
     setMessages(newMessages);
     setIsTyping(true);
 
@@ -75,28 +75,42 @@ function NovaSideChat({ contextData }) {
       
       <div className="side-chat-messages">
         {messages.map((msg, index) => (
-          <div key={index} className={`message-bubble ${msg.sender === 'user' ? 'user' : 'ai'}`}>
+          <div key={index} className={`message-wrapper ${msg.sender === 'user' ? 'user' : 'nova'}`}>
             {msg.sender === 'nova' && (
-              <div className="message-avatar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="nova-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
               </div>
             )}
-            <div className="message-content">{msg.text}</div>
+            <div className={`chat-bubble ${msg.sender === 'user' ? 'user' : 'nova'}`}>
+              {msg.text}
+            </div>
           </div>
         ))}
+        
+        {messages.length === 1 && !isTyping && (
+          <div className="nova-quick-chips">
+            <p className="chips-title">Sugestões rápidas:</p>
+            <div className="chips-container">
+              <button className="quick-chip" onClick={() => handleSend("Me dê outra ideia para Quinta-feira")}>✨ Outra ideia para Quinta-feira</button>
+              <button className="quick-chip" onClick={() => handleSend("Transforme o post de Terça em um roteiro de vídeo")}>🎬 Roteiro de vídeo para Terça</button>
+              <button className="quick-chip" onClick={() => handleSend("Foque mais em conteúdos de venda (Fundo de Funil)")}>💰 Focar mais em vendas</button>
+            </div>
+          </div>
+        )}
+
         {isTyping && (
-          <div className="message-bubble ai">
-            <div className="message-avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="message-wrapper nova">
+            <div className="nova-avatar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
               </svg>
             </div>
-            <div className="message-content typing-dots">
-              <span></span><span></span><span></span>
+            <div className="chat-bubble nova typing">
+              <div className="dot"></div><div className="dot"></div><div className="dot"></div>
             </div>
           </div>
         )}

@@ -16,9 +16,12 @@ export const useLayout = (title, subtitle, user = null) => {
   const { setLayoutProps } = useContext(LayoutContext);
 
   useEffect(() => {
-    setLayoutProps({ title, subtitle, user });
+    setLayoutProps(prev => ({
+      title,
+      subtitle,
+      user: user !== null ? user : prev.user
+    }));
     
-    // Opcional: Atualizar o título do documento HTML
     if (title) {
       document.title = `${title} | JC Hub`;
     }

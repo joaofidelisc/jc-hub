@@ -13,6 +13,7 @@ app.add_middleware(
 )
 
 from app.core.database import Base, engine
+from app.core.schema_migrations import apply_schema_migrations
 from app.api.agenda import router as agenda_router
 from app.models.user import User
 from app.models.user_integration import UserIntegration
@@ -22,8 +23,9 @@ from app.models.allowed_email import AllowedEmail
 from app.models.content_history import ContentHistory
 from app.models.creator_plan import CreatorPlan
 
-# Cria as tabelas no banco caso não existam
+# Cria as tabelas no banco caso não existam e aplica ajustes idempotentes em schemas existentes
 Base.metadata.create_all(bind=engine)
+apply_schema_migrations(engine)
 
 app.include_router(whatsapp_router, prefix="/api/v1")
 app.include_router(agenda_router, prefix="/api/v1")

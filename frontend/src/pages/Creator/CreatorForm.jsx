@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import './Creator.css'; 
 
-function CreatorForm({ onSubmit, loading }) {
+function CreatorForm({ onSubmit, loading, user }) {
   const [step, setStep] = useState(1);
   const totalSteps = 5;
   
@@ -29,12 +29,6 @@ function CreatorForm({ onSubmit, loading }) {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // Calcula qual seria a string da semana atual (mesma lógica do backend simplificada)
-        // Como o backend salva "de DD/MM/YYYY a DD/MM/YYYY", a forma mais simples 
-        // é checar se o plano mais recente tem a data de hoje nele, mas como não temos 
-        // a lógica exata de datas no frontend facilmente, podemos assumir que se houver 
-        // planos na lista, o último criado provavelmente foi desta semana. 
-        // Para ser preciso: se tem qualquer plano, assume Próxima Semana para evitar sobrescrever acidentalmente.
         if (data && data.length > 0) {
           setFormData(prev => ({ ...prev, week: 'Próxima Semana' }));
         }
@@ -43,7 +37,12 @@ function CreatorForm({ onSubmit, loading }) {
       }
     };
     checkCurrentWeek();
-  }, []);
+
+    // Load user settings if they exist
+    if (user?.creator_settings) {
+      setFormData(prev => ({ ...prev, ...user.creator_settings, week: prev.week }));
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -60,7 +59,34 @@ function CreatorForm({ onSubmit, loading }) {
     });
   };
 
-  const handleNext = () => {
+  const saveSettingsToDB = async (dataToSave) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      await axios.put('/api/profile/creator_settings', { settings: dataToSave }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error("Failed to save creator settings", error);
+    }
+  };
+
+  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
+  const [checkingPlan, setCheckingPlan] = useState(false);
+
+  const proceedWithSubmit = () => {
+    setShowOverwriteModal(false);
+    saveSettingsToDB({
+      niche: formData.niche,
+      persona: formData.persona,
+      businessHours: formData.businessHours,
+      tone: formData.tone,
+      networks: formData.networks,
+      days: formData.days
+    });
+    onSubmit(formData);
+  };
+
+  const handleNext = async () => {
     if (step === 1 && !formData.niche.trim()) return toast.warning("Preencha o nicho");
     if (step === 2 && !formData.persona.trim()) return toast.warning("Preencha o público-alvo");
     if (step === 3 && !formData.businessHours.trim()) return toast.warning("Preencha o horário de atendimento");
@@ -70,7 +96,25 @@ function CreatorForm({ onSubmit, loading }) {
       setStep(step + 1);
     } else {
       if (formData.days.length === 0) return toast.warning("Selecione pelo menos um dia");
-      onSubmit(formData);
+      
+      setCheckingPlan(true);
+      try {
+        const token = localStorage.getItem('accessToken');
+        const { data } = await axios.get(`/api/creator/check-plan?week=${encodeURIComponent(formData.week)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (data.exists) {
+          setShowOverwriteModal(true);
+        } else {
+          proceedWithSubmit();
+        }
+      } catch (err) {
+        console.error(err);
+        proceedWithSubmit(); // Proceed anyway on error
+      } finally {
+        setCheckingPlan(false);
+      }
     }
   };
 
@@ -290,6 +334,37 @@ function CreatorForm({ onSubmit, loading }) {
         </>
         )}
       </div>
+
+      {showOverwriteModal && (
+        <div className="mobile-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <div className="creator-form-card" style={{ maxWidth: '500px', width: '90%', background: 'var(--md-surface)', padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Atenção: Planejamento já existe!
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+              Você já gerou um planejamento para a <strong>{formData.week}</strong>. Se você gerar novamente, o conteúdo anterior será <strong>substituído</strong>. 
+            </p>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', marginTop: '8px' }}>
+              Tem certeza que deseja continuar?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowOverwriteModal(false)}
+                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 500 }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={proceedWithSubmit}
+                style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+              >
+                Sim, Substituir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
