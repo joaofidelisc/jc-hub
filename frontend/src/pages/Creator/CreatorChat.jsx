@@ -106,6 +106,7 @@ function CreatorLayout() {
             <CreatorResults 
               results={results.plan_json || results} 
               planId={results.id}
+              user={user}
               onReset={() => setResults(null)} 
               onNext={currentPlanIndex > 0 ? handleNextPlan : null}
               onPrev={currentPlanIndex !== -1 && currentPlanIndex < history.length - 1 ? handlePrevPlan : null}

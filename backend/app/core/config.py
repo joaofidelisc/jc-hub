@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     
     # OpenAI / Gemini
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_IMAGE_MODEL: str = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
     # External Agent VM (OpenClaw)

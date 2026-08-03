@@ -175,9 +175,19 @@ Responda EXCLUSIVAMENTE em um JSON válido com a seguinte estrutura:
       "etapa_funil": "Topo (Atração) / Meio (Autoridade) / Fundo (Venda)",
       "noticia_tendencia_usada": "Breve descrição de qual tendência atual/notícia você usou para embasar esse post",
       "conteudo_por_rede": {{
-         "instagram": {{ "formato": "Reels", "roteiro_ou_legenda": "...", "cta": "..." }},
-         "linkedin": {{ "formato": "Artigo Curto", "roteiro_ou_legenda": "...", "cta": "..." }}
-         // (Apenas inclua as chaves para as redes solicitadas)
+         "instagram": {{ 
+             "formato": "Reels", 
+             "roteiro_ou_legenda": "Roteiro do vídeo (cenas/falas) ou estrutura detalhada",
+             "legenda_instagram": "Texto pronto, humano e persuasivo para copiar e colar na legenda, com hashtags e emojis bem dosados",
+             "descricao_visual": "Descrição detalhada de como deve ser a imagem gerada para esse post (cenário, composição, cores, posição do logo/elementos).",
+             "cta": "..." 
+         }},
+         "linkedin": {{ 
+             "formato": "Artigo Curto", 
+             "roteiro_ou_legenda": "...", 
+             "descricao_visual": "...", 
+             "cta": "..." 
+         }}
       }}
     }}
   ]
@@ -396,12 +406,16 @@ def generate_post_image(plan_id: int, post_index: int, db: Session = Depends(get
         post = plan_json["planejamento"][post_index]
         tema = post.get("tema_central", "")
         conteudo_por_rede = post.get("conteudo_por_rede", {})
-        detalhes = ""
+        
+        descricao_visual = ""
+        roteiro = ""
         if conteudo_por_rede:
             first_network = list(conteudo_por_rede.keys())[0]
-            detalhes = conteudo_por_rede[first_network].get("roteiro_ou_legenda", "")
+            descricao_visual = conteudo_por_rede[first_network].get("descricao_visual", "")
+            roteiro = conteudo_por_rede[first_network].get("roteiro_ou_legenda", "")
 
-        prompt = f"Uma imagem criativa, profissional e atraente para um post de rede social. O tema central do post é: '{tema}'. Contexto adicional da postagem: {detalhes[:400]}. Atenção: Não escreva textos legíveis ou palavras específicas na imagem, mantenha o foco puramente visual e estético."
+        context_visual = descricao_visual if descricao_visual else roteiro[:400]
+        prompt = f"Uma imagem criativa, profissional e atraente para um post de rede social. O tema central do post é: '{tema}'. Contexto visual obrigatório: {context_visual}. Atenção: Não escreva textos legíveis ou palavras específicas na imagem, mantenha o foco puramente visual e estético."
         
         if not settings.OPENAI_API_KEY:
             raise HTTPException(status_code=503, detail="OpenAI API Key não configurada.")
@@ -412,11 +426,16 @@ def generate_post_image(plan_id: int, post_index: int, db: Session = Depends(get
             model="dall-e-3",
             prompt=prompt,
             size="1024x1024",
-            quality="standard",
+            response_format="b64_json",
             n=1
         )
         
-        image_url = response.data[0].url
+        image_data = response.data[0]
+        b64_image = getattr(image_data, "b64_json", None)
+        if not b64_image:
+            raise ValueError("Resposta da OpenAI não retornou imagem base64.")
+            
+        image_url = f"data:image/png;base64,{b64_image}"
         return {"image_url": image_url}
         
     except HTTPException:

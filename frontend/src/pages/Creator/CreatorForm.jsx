@@ -107,7 +107,9 @@ function CreatorForm({ onSubmit, loading, user }) {
       businessHours: formData.businessHours,
       tone: formData.tone,
       networks: formData.networks,
-      days: formData.days
+      days: formData.days,
+      logo: formData.logo,
+      prints: formData.prints
     });
     onSubmit(formData);
   };

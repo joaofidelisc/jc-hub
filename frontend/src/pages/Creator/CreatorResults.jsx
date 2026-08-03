@@ -3,7 +3,7 @@ import './Creator.css';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
-function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
+function CreatorResults({ results, planId, user, onReset, onNext, onPrev }) {
   const [activeTab, setActiveTab] = useState(0);
   const [expandedDay, setExpandedDay] = useState(null);
   const [plan, setPlan] = useState([]);
@@ -74,6 +74,42 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
     }
   };
 
+  const applyLogoOverlay = (base64Background, logoSrc) => {
+    return new Promise((resolve) => {
+      const bg = new Image();
+      bg.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = bg.width;
+        canvas.height = bg.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bg, 0, 0);
+
+        if (logoSrc) {
+          const logo = new Image();
+          logo.onload = () => {
+            const maxLogoWidth = canvas.width * 0.25; 
+            const scale = maxLogoWidth / logo.width;
+            const logoWidth = logo.width * scale;
+            const logoHeight = logo.height * scale;
+            
+            const margin = 30;
+            const x = canvas.width - logoWidth - margin;
+            const y = canvas.height - logoHeight - margin;
+            
+            ctx.drawImage(logo, x, y, logoWidth, logoHeight);
+            resolve(canvas.toDataURL('image/png'));
+          };
+          logo.onerror = () => resolve(base64Background);
+          logo.src = logoSrc;
+        } else {
+          resolve(base64Background);
+        }
+      };
+      bg.onerror = () => resolve(base64Background);
+      bg.src = base64Background;
+    });
+  };
+
   const handleGenerateImage = async (e, index) => {
     e.stopPropagation();
     if (!planId) return toast.warning("Plano não salvo.");
@@ -84,7 +120,15 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
       const { data } = await axios.post(`/api/creator/plan/${planId}/generate-image/${index}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setGeneratedImages(prev => ({ ...prev, [index]: data.image_url }));
+      
+      let finalImageUrl = data.image_url;
+      const logo = user?.creator_settings?.logo?.[0];
+      
+      if (logo) {
+         finalImageUrl = await applyLogoOverlay(data.image_url, logo);
+      }
+      
+      setGeneratedImages(prev => ({ ...prev, [index]: finalImageUrl }));
       setExpandedDay(index);
       toast.success("Imagem gerada com sucesso!");
     } catch (err) {
@@ -271,10 +315,32 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
                       </div>
                     </div>
                     
-                    <div className="script-block mb-4">
-                      <h5>Roteiro / Legenda</h5>
-                      <p>{networkContent.roteiro_ou_legenda}</p>
-                    </div>
+                    {networkContent.roteiro_ou_legenda && (
+                      <div className="script-block mb-4">
+                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
+                          📝 Roteiro / Texto Completo
+                        </h5>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{networkContent.roteiro_ou_legenda}</p>
+                      </div>
+                    )}
+                    
+                    {networkContent.legenda_instagram && (
+                      <div className="script-block mb-4" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '12px' }}>
+                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
+                          📲 Legenda para o Instagram
+                        </h5>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{networkContent.legenda_instagram}</p>
+                      </div>
+                    )}
+                    
+                    {networkContent.descricao_visual && (
+                      <div className="script-block mb-4">
+                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
+                          🖼️ Composição Visual da Imagem
+                        </h5>
+                        <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{networkContent.descricao_visual}</p>
+                      </div>
+                    )}
                     
                     {networkContent.cta && (
                       <div className="cta-block mb-4">
