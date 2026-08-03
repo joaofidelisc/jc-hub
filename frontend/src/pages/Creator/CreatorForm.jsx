@@ -456,30 +456,37 @@ function CreatorForm({ onSubmit, loading, user }) {
       </div>
 
       {showOverwriteModal && (
-        <div className="mobile-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
-          <div className="creator-form-card" style={{ maxWidth: '500px', width: '90%', background: 'var(--md-surface)', padding: '24px', borderRadius: 'var(--radius-lg)' }}>
-            <h3 style={{ marginTop: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Atenção: Planejamento já existe!
+        <div className="mobile-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ maxWidth: '420px', width: '90%', background: 'var(--bg-page)', padding: '32px', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', marginBottom: '20px' }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            
+            <h3 style={{ margin: '0 0 12px 0', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>
+              Planejamento já existe
             </h3>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5' }}>
-              Você já gerou um planejamento para a <strong>{formData.week}</strong>. Se você gerar novamente, o conteúdo anterior será <strong>substituído</strong>. 
+            
+            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 28px 0', fontSize: '0.95rem' }}>
+              Você já gerou um planejamento para a <strong>{formData.week}</strong>. Se você gerar novamente, o conteúdo anterior será <strong>substituído permanentemente</strong>. Deseja continuar?
             </p>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', marginTop: '8px' }}>
-              Tem certeza que deseja continuar?
-            </p>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+            
+            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
               <button 
                 onClick={() => setShowOverwriteModal(false)}
-                style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 500 }}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600, transition: 'all 0.2s' }}
+                onMouseOver={(e) => e.target.style.background = 'var(--bg-surface)'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
               >
                 Cancelar
               </button>
               <button 
                 onClick={proceedWithSubmit}
-                style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: '#fff', cursor: 'pointer', fontWeight: 500 }}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', transition: 'all 0.2s' }}
+                onMouseOver={(e) => e.target.style.filter = 'brightness(1.1)'}
+                onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
               >
-                Sim, Substituir
+                Substituir
               </button>
             </div>
           </div>

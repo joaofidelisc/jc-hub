@@ -61,6 +61,54 @@ def extract_json(raw_text: str) -> dict:
             
     raise ValueError("Failed to extract JSON from Gemini response")
 
+def image_part(b64_img: str) -> dict:
+    img_url = b64_img if b64_img.startswith("data:image") else f"data:image/jpeg;base64,{b64_img}"
+    return {"type": "image_url", "image_url": {"url": img_url}}
+
+def analyze_visual_attachments(client: OpenAI, logo: Optional[List[str]] = None, prints: Optional[List[str]] = None) -> str:
+    if not logo and not prints:
+        return ""
+
+    visual_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Você é uma diretora de arte analisando anexos visuais para orientar conteúdo e imagens de redes sociais. "
+                "Analise somente elementos visuais, marca, cores, estilo, tom, produtos/serviços aparentes, textos visíveis e temas de conteúdo. "
+                "Não identifique pessoas, rostos, dados pessoais ou informações sensíveis. Responda apenas em JSON válido."
+            ),
+        }
+    ]
+    visual_content = [
+        {
+            "type": "text",
+            "text": (
+                "Extraia um brief visual objetivo dos anexos. Retorne JSON com: "
+                "logo, cores, estilo_visual, elementos_recorrentes, tom_da_marca, temas_dos_prints, "
+                "diretrizes_para_imagens. Se algum item não estiver claro, use string vazia ou lista vazia."
+            ),
+        }
+    ]
+    if logo:
+        visual_content.append({"type": "text", "text": "Logotipo do negócio:"})
+        visual_content.extend(image_part(img) for img in logo)
+    if prints:
+        visual_content.append({"type": "text", "text": "Prints/referências visuais de posts anteriores:"})
+        visual_content.extend(image_part(img) for img in prints)
+    visual_messages.append({"role": "user", "content": visual_content})
+
+    visual_response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=visual_messages,
+        temperature=0.2,
+        response_format={"type": "json_object"},
+    )
+    visual_message = visual_response.choices[0].message
+    visual_refusal = getattr(visual_message, "refusal", None)
+    if visual_refusal:
+        raise ValueError(visual_refusal)
+    return visual_message.content or ""
+
 @router.post("/generate")
 def generate_content(
     req: CreatorRequest,
@@ -138,6 +186,28 @@ NÃO repita os mesmos temas. Crie uma evolução lógica. Construa uma narrativa
         else ""
     )
 
+    visual_context = ""
+    if req.logo or req.prints:
+        try:
+            visual_context = analyze_visual_attachments(client, req.logo, req.prints)
+            if visual_context:
+                print("=== VISUAL CONTEXT FROM ATTACHMENTS ===")
+                print(visual_context)
+                print("=======================================")
+        except Exception as e:
+            print(f"Exception in visual attachment analysis: {str(e)}")
+            raise HTTPException(
+                status_code=400,
+                detail="Não foi possível analisar o logotipo/prints anexados. Remova imagens sensíveis ou envie anexos mais claros."
+            )
+
+    visual_context_block = (
+        "BRIEF VISUAL EXTRAÍDO DOS ANEXOS DO USUÁRIO (OBRIGATÓRIO CONSIDERAR):\n"
+        f"{visual_context}\n"
+        if visual_context
+        else ""
+    )
+
     system_prompt = f"""Seu nome é Nova. Você é a assistente pessoal de inteligência artificial do usuário, projetada para ser brilhante, amigável e estratégica.
 Sua missão atual é criar um planejamento semanal de conteúdo de alto nível para um {req.niche}.
 
@@ -149,6 +219,7 @@ Sugira datas reais dentro do período do planejamento e um horário estratégico
 TOM DE VOZ DO CONTEÚDO A SER GERADO: {req.tone}
 PÚBLICO-ALVO: {req.persona}
 {business_info_block}
+{visual_context_block}
 {anti_repetition_block}
 {past_strategy_block}
 
@@ -161,7 +232,7 @@ Se for Instagram (Post/Carrossel), descreva o visual de cada lâmina e entregue 
 REGRA DE QUALIDADE E PROFUNDIDADE:
 Os textos e roteiros NUNCA devem ser rasos. Desenvolva o conteúdo com profundidade, parágrafos bem definidos, contexto, dicas práticas, e estrutura clara.
 Se mencionar "Mitos e Verdades", "Dicas", ou listas, EXPLIQUE cada ponto de forma detalhada e convincente. Um post genérico é inaceitável.
-O usuário enviará prints/imagens em anexo, se existirem, use as informações extraídas dessas imagens como base forte para o seu planejamento!
+O usuário enviará prints/imagens em anexo. Analise-as APENAS para capturar o contexto do negócio, referências de estilo, nicho e temas abordados. NÃO tente identificar rostos, pessoas físicas, ou ler dados sensíveis. Caso a imagem não seja clara, foque apenas no texto fornecido.
 Nunca copie o mesmo texto ou formato para redes diferentes no mesmo dia.
 
 Responda EXCLUSIVAMENTE em um JSON válido com a seguinte estrutura:
@@ -204,29 +275,14 @@ Gere o JSON e capriche na profundidade dos textos."""
         {"role": "system", "content": system_prompt}
     ]
 
-    user_message_content = [{"type": "text", "text": user_prompt}]
-    
-    if req.logo:
-        user_message_content.append({"type": "text", "text": "Aqui está o logotipo do negócio:"})
-        for b64_img in req.logo:
-            img_url = b64_img if b64_img.startswith("data:image") else f"data:image/jpeg;base64,{b64_img}"
-            user_message_content.append({
-                "type": "image_url",
-                "image_url": {"url": img_url}
-            })
+    if visual_context:
+        user_prompt = (
+            f"{user_prompt}\n\n"
+            "Use obrigatoriamente o brief visual extraído do logotipo e dos prints para definir temas, "
+            "descrições visuais, estilo, cores e presença de marca nas imagens."
+        )
 
-    if req.prints:
-        user_message_content.append({"type": "text", "text": "Aqui estão exemplos de posts anteriores ou referências visuais:"})
-        for b64_img in req.prints:
-            # We assume it comes as data:image/jpeg;base64,... 
-            # or just base64. Let's pass it properly if it has the prefix.
-            img_url = b64_img if b64_img.startswith("data:image") else f"data:image/jpeg;base64,{b64_img}"
-            user_message_content.append({
-                "type": "image_url",
-                "image_url": {"url": img_url}
-            })
-
-    messages.append({"role": "user", "content": user_message_content})
+    messages.append({"role": "user", "content": user_prompt})
 
     print("=== OPENAI PAYLOAD ===")
     print(f"System: {system_prompt[:100]}...\nUser: {user_prompt[:100]}...")
@@ -236,26 +292,40 @@ Gere o JSON e capriche na profundidade dos textos."""
         print(f"[{len(req.prints)} prints anexados na requisição multimodal]")
     print("======================")
 
-    try:
+    def request_plan(openai_messages):
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=messages,
+            messages=openai_messages,
             temperature=1.0 if recent_themes else 0.8,
             response_format={"type": "json_object"}
         )
-        
-        text = response.choices[0].message.content
+
+        message = response.choices[0].message
+        refusal = getattr(message, "refusal", None)
+        if refusal:
+            raise ValueError(f"OpenAI recusou gerar o planejamento devido a filtros de segurança: {refusal}")
+
+        text = message.content
         if not text:
+            print("OPENAI RAW RESPONSE:", response)
             raise ValueError("Resposta vazia da OpenAI")
-            
+
+        return text
+
+    try:
+        text = request_plan(messages)
+
         print("=== OPENAI RESPONSE ===")
         print(text)
         print("=======================")
-            
+
         plan_json = extract_json(text)
         
-        # Injeta o rótulo da semana para agrupamento
+        # Injeta metadados para agrupamento e reutilização na geração de imagens
         plan_json["week_label"] = week_str
+        if visual_context:
+            plan_json["visual_context"] = visual_context
+            plan_json["used_visual_attachments"] = True
         
         # Save generated themes to history
         for p in plan_json.get("planejamento", []):
@@ -296,6 +366,9 @@ Gere o JSON e capriche na profundidade dos textos."""
         
     except HTTPException:
         raise
+    except ValueError as e:
+        print(f"Validation Error in generate_content: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Exception in generate_content: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro interno ao gerar conteúdo.")
@@ -415,7 +488,34 @@ def generate_post_image(plan_id: int, post_index: int, db: Session = Depends(get
             roteiro = conteudo_por_rede[first_network].get("roteiro_ou_legenda", "")
 
         context_visual = descricao_visual if descricao_visual else roteiro[:400]
-        prompt = f"Uma imagem criativa, profissional e atraente para um post de rede social. O tema central do post é: '{tema}'. Contexto visual obrigatório: {context_visual}. Atenção: Não escreva textos legíveis ou palavras específicas na imagem, mantenha o foco puramente visual e estético."
+        visual_context = plan_json.get("visual_context", "")
+        if not visual_context:
+            creator_settings = current_user.creator_settings or {}
+            saved_logo = creator_settings.get("logo") or []
+            saved_prints = creator_settings.get("prints") or []
+            if saved_logo or saved_prints:
+                try:
+                    client_for_visual = OpenAI(api_key=settings.OPENAI_API_KEY)
+                    visual_context = analyze_visual_attachments(client_for_visual, saved_logo, saved_prints)
+                    if visual_context:
+                        plan_json["visual_context"] = visual_context
+                        plan_json["used_visual_attachments"] = True
+                        from sqlalchemy.orm.attributes import flag_modified
+                        plan.plan_json = plan_json
+                        flag_modified(plan, "plan_json")
+                        db.commit()
+                except Exception as e:
+                    print(f"Exception in image visual attachment analysis: {str(e)}")
+
+        prompt = (
+            "Crie uma imagem criativa, profissional e atraente para um post de rede social. "
+            f"Tema central: '{tema}'. "
+            f"Contexto visual obrigatório do post: {context_visual}. "
+            f"Brief visual da marca extraído do logotipo e prints do usuário: {visual_context}. "
+            "Considere cores, estilo, elementos recorrentes e posicionamento de marca descritos no brief. "
+            "Reserve uma área limpa no canto inferior direito para aplicação posterior do logotipo. "
+            "Não escreva textos legíveis, frases ou palavras específicas na imagem; mantenha o foco visual e estético."
+        )
         
         if not settings.OPENAI_API_KEY:
             raise HTTPException(status_code=503, detail="OpenAI API Key não configurada.")
@@ -423,19 +523,20 @@ def generate_post_image(plan_id: int, post_index: int, db: Session = Depends(get
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
         response = client.images.generate(
-            model="dall-e-3",
+            model=settings.OPENAI_IMAGE_MODEL,
             prompt=prompt,
             size="1024x1024",
-            response_format="b64_json",
             n=1
         )
         
         image_data = response.data[0]
-        b64_image = getattr(image_data, "b64_json", None)
-        if not b64_image:
-            raise ValueError("Resposta da OpenAI não retornou imagem base64.")
-            
-        image_url = f"data:image/png;base64,{b64_image}"
+        image_url = getattr(image_data, "url", None)
+        if not image_url:
+            b64_image = getattr(image_data, "b64_json", None)
+            if not b64_image:
+                raise ValueError("Resposta da OpenAI não retornou URL nem imagem base64.")
+            image_url = f"data:image/png;base64,{b64_image}"
+
         return {"image_url": image_url}
         
     except HTTPException:

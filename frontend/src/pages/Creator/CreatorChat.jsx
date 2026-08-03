@@ -86,7 +86,8 @@ function CreatorLayout() {
       toast.success("Plano gerado com sucesso! Verifique também a aba Planejamentos no menu.");
     } catch (error) {
       console.error(error);
-      toast.error("Houve um erro ao gerar o planejamento. Tente novamente.");
+      const errorMessage = error.response?.data?.detail || "Houve um erro ao gerar o planejamento. Tente novamente.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
