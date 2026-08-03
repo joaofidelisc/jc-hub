@@ -5,10 +5,13 @@ import './Creator.css';
 
 function CreatorForm({ onSubmit, loading, user }) {
   const [step, setStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 6;
   
   const [formData, setFormData] = useState({
     niche: '',
+    businessInfo: '',
+    logo: [],
+    prints: [],
     persona: '',
     businessHours: '',
     tone: 'Profissional e Amigável',
@@ -59,6 +62,28 @@ function CreatorForm({ onSubmit, loading, user }) {
     });
   };
 
+  const handleImageUpload = (e, field) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          [field]: [...(prev[field] || []), reader.result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index, field) => {
+    setFormData(prev => {
+      const newImages = [...prev[field]];
+      newImages.splice(index, 1);
+      return { ...prev, [field]: newImages };
+    });
+  };
+
   const saveSettingsToDB = async (dataToSave) => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -77,6 +102,7 @@ function CreatorForm({ onSubmit, loading, user }) {
     setShowOverwriteModal(false);
     saveSettingsToDB({
       niche: formData.niche,
+      businessInfo: formData.businessInfo,
       persona: formData.persona,
       businessHours: formData.businessHours,
       tone: formData.tone,
@@ -88,9 +114,9 @@ function CreatorForm({ onSubmit, loading, user }) {
 
   const handleNext = async () => {
     if (step === 1 && !formData.niche.trim()) return toast.warning("Preencha o nicho");
-    if (step === 2 && !formData.persona.trim()) return toast.warning("Preencha o público-alvo");
-    if (step === 3 && !formData.businessHours.trim()) return toast.warning("Preencha o horário de atendimento");
-    if (step === 4 && formData.networks.length === 0) return toast.warning("Selecione pelo menos uma rede social");
+    if (step === 3 && !formData.persona.trim()) return toast.warning("Preencha o público-alvo");
+    if (step === 4 && !formData.businessHours.trim()) return toast.warning("Preencha o horário de atendimento");
+    if (step === 5 && formData.networks.length === 0) return toast.warning("Selecione pelo menos uma rede social");
     
     if (step < totalSteps) {
       setStep(step + 1);
@@ -155,23 +181,29 @@ function CreatorForm({ onSubmit, loading, user }) {
           )}
           {step === 2 && (
             <>
+              <h2>Sobre o seu negócio</h2>
+              <p>Fale mais sobre seus produtos, serviços, diferenciais ou histórico.</p>
+            </>
+          )}
+          {step === 3 && (
+            <>
               <h2>Quem é o seu público?</h2>
               <p>Descreva a persona ou o público-alvo principal que você deseja alcançar.</p>
             </>
           )}
-          {step === 3 && (
+          {step === 4 && (
             <>
               <h2>Horários e Tom de Voz</h2>
               <p>Detalhes operacionais e a "personalidade" da sua marca nas redes.</p>
             </>
           )}
-          {step === 4 && (
+          {step === 5 && (
             <>
               <h2>Onde você vai postar?</h2>
               <p>Selecione as redes sociais foco deste planejamento.</p>
             </>
           )}
-          {step === 5 && (
+          {step === 6 && (
             <>
               <h2>Dias de Publicação</h2>
               <p>Quais dias da semana você costuma ou quer postar?</p>
@@ -196,6 +228,92 @@ function CreatorForm({ onSubmit, loading, user }) {
 
           {step === 2 && (
             <div className="form-group">
+              <textarea
+                name="businessInfo"
+                placeholder="Ex: Oferecemos serviços de clareamento a laser, temos 10 anos de mercado, nosso diferencial é o atendimento humanizado..."
+                value={formData.businessInfo}
+                onChange={handleChange}
+                autoFocus
+                style={{ height: '120px', resize: 'vertical' }}
+              />
+              <div style={{ marginTop: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Logotipo (Opcional)
+                </label>
+                
+                <div className="upload-dropzone">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={(e) => handleImageUpload(e, 'logo')} 
+                    id="logo-upload"
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="logo-upload" className="dropzone-label">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <div className="dropzone-text">Clique para adicionar o logotipo</div>
+                    <div className="dropzone-subtext">A IA analisará as cores e estilo da sua marca</div>
+                  </label>
+                </div>
+
+                {formData.logo && formData.logo.length > 0 && (
+                  <div className="prints-preview-container">
+                    {formData.logo.map((print, idx) => (
+                      <div key={idx} className="print-preview-item">
+                        <img src={print} alt="preview" />
+                        <button 
+                          onClick={() => removeImage(idx, 'logo')}
+                          className="print-remove-btn"
+                          title="Remover"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  Posts Anteriores (Opcional)
+                </label>
+                
+                <div className="upload-dropzone">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={(e) => handleImageUpload(e, 'prints')} 
+                    id="prints-upload"
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="prints-upload" className="dropzone-label">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    <div className="dropzone-text">Clique para adicionar prints do Instagram</div>
+                    <div className="dropzone-subtext">A IA usará como referência de estilo visual para os próximos posts</div>
+                  </label>
+                </div>
+
+                {formData.prints && formData.prints.length > 0 && (
+                  <div className="prints-preview-container">
+                    {formData.prints.map((print, idx) => (
+                      <div key={idx} className="print-preview-item">
+                        <img src={print} alt="preview" />
+                        <button 
+                          onClick={() => removeImage(idx, 'prints')}
+                          className="print-remove-btn"
+                          title="Remover"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="form-group">
               <input 
                 type="text" 
                 name="persona" 
@@ -208,7 +326,7 @@ function CreatorForm({ onSubmit, loading, user }) {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <>
               <div className="form-group">
                 <label>Horário de Atendimento</label>
@@ -233,7 +351,7 @@ function CreatorForm({ onSubmit, loading, user }) {
             </>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="checkbox-grid">
               {availableNetworks.map(net => (
                 <label key={net} className={`checkbox-label ${formData.networks.includes(net) ? 'active' : ''}`}>
@@ -248,7 +366,7 @@ function CreatorForm({ onSubmit, loading, user }) {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <>
               <div className="form-group mb-4">
                 <label>Para qual semana?</label>

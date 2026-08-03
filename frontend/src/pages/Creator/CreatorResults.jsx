@@ -7,6 +7,8 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
   const [activeTab, setActiveTab] = useState(0);
   const [expandedDay, setExpandedDay] = useState(null);
   const [plan, setPlan] = useState([]);
+  const [generatingImages, setGeneratingImages] = useState({});
+  const [generatedImages, setGeneratedImages] = useState({});
 
   useEffect(() => {
     setPlan(results?.planejamento || []);
@@ -69,6 +71,26 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
       revertPlan[index].feito = !revertPlan[index].feito;
       setPlan(revertPlan);
       toast.error("Erro ao atualizar status.");
+    }
+  };
+
+  const handleGenerateImage = async (e, index) => {
+    e.stopPropagation();
+    if (!planId) return toast.warning("Plano não salvo.");
+    
+    setGeneratingImages(prev => ({ ...prev, [index]: true }));
+    try {
+      const token = localStorage.getItem('accessToken');
+      const { data } = await axios.post(`/api/creator/plan/${planId}/generate-image/${index}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setGeneratedImages(prev => ({ ...prev, [index]: data.image_url }));
+      setExpandedDay(index);
+      toast.success("Imagem gerada com sucesso!");
+    } catch (err) {
+      toast.error("Falha ao gerar imagem.");
+    } finally {
+      setGeneratingImages(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -205,16 +227,18 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
                         className="creator-action-btn"
                         style={{ color: 'var(--primary)', padding: '6px' }}
                         title="Gerar Imagem"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toast.info('Geração de imagem será implementada em breve!');
-                        }}
+                        onClick={(e) => handleGenerateImage(e, index)}
+                        disabled={generatingImages[index]}
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                          <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
+                        {generatingImages[index] ? (
+                          <div className="spinner-border spinner-border-sm" role="status" style={{ width: '18px', height: '18px' }}></div>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                          </svg>
+                        )}
                       </button>
                     </div>
 
@@ -253,9 +277,33 @@ function CreatorResults({ results, planId, onReset, onNext, onPrev }) {
                     </div>
                     
                     {networkContent.cta && (
-                      <div className="cta-block">
+                      <div className="cta-block mb-4">
                         <h5>🎯 Call to Action (CTA)</h5>
                         <p>{networkContent.cta}</p>
+                      </div>
+                    )}
+
+                    {generatedImages[index] && (
+                      <div className="generated-image-block mb-4" style={{ textAlign: 'center' }}>
+                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
+                          🖼️ Imagem Gerada (DALL-E 3)
+                        </h5>
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <img 
+                            src={generatedImages[index]} 
+                            alt="Gerada por IA" 
+                            style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                          />
+                          <a 
+                            href={generatedImages[index]} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn btn-primary"
+                            style={{ position: 'absolute', bottom: '16px', right: '16px', borderRadius: '50px', fontWeight: 600, boxShadow: '0 4px 12px rgba(20, 184, 166, 0.4)' }}
+                          >
+                            Abrir / Salvar
+                          </a>
+                        </div>
                       </div>
                     )}
 

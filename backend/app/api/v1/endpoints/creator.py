@@ -34,6 +34,9 @@ class CreatorRequest(BaseModel):
     tone: str
     days: List[str]
     week: str = "Semana Atual"
+    businessInfo: Optional[str] = None
+    prints: Optional[List[str]] = None
+    logo: Optional[List[str]] = None
 
 def extract_json(raw_text: str) -> dict:
     try:
@@ -129,6 +132,11 @@ NÃO repita os mesmos temas. Crie uma evolução lógica. Construa uma narrativa
     start_of_week = reference_date - timedelta(days=reference_date.weekday())
     end_of_week = start_of_week + timedelta(days=6)
     week_str = f"de {start_of_week.strftime('%d/%m/%Y')} a {end_of_week.strftime('%d/%m/%Y')}"
+    business_info_block = (
+        f"INFORMAÇÕES ADICIONAIS SOBRE O NEGÓCIO:\n{req.businessInfo}\n"
+        if req.businessInfo
+        else ""
+    )
 
     system_prompt = f"""Seu nome é Nova. Você é a assistente pessoal de inteligência artificial do usuário, projetada para ser brilhante, amigável e estratégica.
 Sua missão atual é criar um planejamento semanal de conteúdo de alto nível para um {req.niche}.
@@ -140,14 +148,20 @@ Sugira datas reais dentro do período do planejamento e um horário estratégico
 
 TOM DE VOZ DO CONTEÚDO A SER GERADO: {req.tone}
 PÚBLICO-ALVO: {req.persona}
+{business_info_block}
 {anti_repetition_block}
 {past_strategy_block}
 
 O conteúdo deve ser adaptado ESPECIFICAMENTE para as seguintes redes sociais: {', '.join(req.networks)}. 
 ATENÇÃO: É ESTRITAMENTE OBRIGATÓRIO que o conteúdo seja DIFERENTE para cada rede social. 
-Se for TikTok ou Reels, gere um script narrado focado em retenção (linguagem rápida, visual, formato vídeo curto). 
-Se for LinkedIn, gere um artigo ou postagem reflexiva (linguagem corporativa e estruturada).
-Se for Instagram (Post/Carrossel), foque em dicas visuais curtas e impacto direto. 
+Se for TikTok ou Reels, gere um roteiro detalhado focado em retenção (linguagem rápida, visual, formato vídeo curto), separando as cenas visualmente e indicando falas. 
+Se for LinkedIn, gere um artigo profundo ou postagem reflexiva (linguagem corporativa, estruturada em parágrafos e pontos chave).
+Se for Instagram (Post/Carrossel), descreva o visual de cada lâmina e entregue uma legenda rica e engajadora. 
+
+REGRA DE QUALIDADE E PROFUNDIDADE:
+Os textos e roteiros NUNCA devem ser rasos. Desenvolva o conteúdo com profundidade, parágrafos bem definidos, contexto, dicas práticas, e estrutura clara.
+Se mencionar "Mitos e Verdades", "Dicas", ou listas, EXPLIQUE cada ponto de forma detalhada e convincente. Um post genérico é inaceitável.
+O usuário enviará prints/imagens em anexo, se existirem, use as informações extraídas dessas imagens como base forte para o seu planejamento!
 Nunca copie o mesmo texto ou formato para redes diferentes no mesmo dia.
 
 Responda EXCLUSIVAMENTE em um JSON válido com a seguinte estrutura:
@@ -174,19 +188,48 @@ Responda EXCLUSIVAMENTE em um JSON válido com a seguinte estrutura:
 Redes selecionadas: {', '.join(req.networks)}.
 Horário de atendimento: {req.businessHours} (use isso de forma inteligente e realista nos CTAs de fundo de funil para incentivar agendamento/contato).
 
-Gere o JSON."""
+Gere o JSON e capriche na profundidade dos textos."""
+
+    messages = [
+        {"role": "system", "content": system_prompt}
+    ]
+
+    user_message_content = [{"type": "text", "text": user_prompt}]
+    
+    if req.logo:
+        user_message_content.append({"type": "text", "text": "Aqui está o logotipo do negócio:"})
+        for b64_img in req.logo:
+            img_url = b64_img if b64_img.startswith("data:image") else f"data:image/jpeg;base64,{b64_img}"
+            user_message_content.append({
+                "type": "image_url",
+                "image_url": {"url": img_url}
+            })
+
+    if req.prints:
+        user_message_content.append({"type": "text", "text": "Aqui estão exemplos de posts anteriores ou referências visuais:"})
+        for b64_img in req.prints:
+            # We assume it comes as data:image/jpeg;base64,... 
+            # or just base64. Let's pass it properly if it has the prefix.
+            img_url = b64_img if b64_img.startswith("data:image") else f"data:image/jpeg;base64,{b64_img}"
+            user_message_content.append({
+                "type": "image_url",
+                "image_url": {"url": img_url}
+            })
+
+    messages.append({"role": "user", "content": user_message_content})
 
     print("=== OPENAI PAYLOAD ===")
     print(f"System: {system_prompt[:100]}...\nUser: {user_prompt[:100]}...")
+    if req.logo:
+        print(f"[{len(req.logo)} logotipos anexados na requisição multimodal]")
+    if req.prints:
+        print(f"[{len(req.prints)} prints anexados na requisição multimodal]")
     print("======================")
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
+            model="gpt-4o",
+            messages=messages,
             temperature=1.0 if recent_themes else 0.8,
             response_format={"type": "json_object"}
         )
@@ -270,7 +313,7 @@ Você NÃO deve fazer perguntas infinitas, apenas responda as dúvidas do usuár
             messages.append({"role": role, "content": msg.text})
             
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=messages,
             temperature=0.5
         )
@@ -338,3 +381,46 @@ def toggle_post_status(plan_id: int, post_index: int, db: Session = Depends(get_
     except Exception as e:
         print(f"Exception in toggle_post_status: {str(e)}")
         raise HTTPException(status_code=500, detail="Erro ao atualizar status.")
+
+@router.post("/plan/{plan_id}/generate-image/{post_index}")
+def generate_post_image(plan_id: int, post_index: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        plan = db.query(CreatorPlan).filter(CreatorPlan.id == plan_id, CreatorPlan.user_id == current_user.id).first()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plano não encontrado.")
+            
+        plan_json = plan.plan_json
+        if "planejamento" not in plan_json or post_index >= len(plan_json["planejamento"]):
+            raise HTTPException(status_code=400, detail="Índice de postagem inválido.")
+            
+        post = plan_json["planejamento"][post_index]
+        tema = post.get("tema_central", "")
+        conteudo_por_rede = post.get("conteudo_por_rede", {})
+        detalhes = ""
+        if conteudo_por_rede:
+            first_network = list(conteudo_por_rede.keys())[0]
+            detalhes = conteudo_por_rede[first_network].get("roteiro_ou_legenda", "")
+
+        prompt = f"Uma imagem criativa, profissional e atraente para um post de rede social. O tema central do post é: '{tema}'. Contexto adicional da postagem: {detalhes[:400]}. Atenção: Não escreva textos legíveis ou palavras específicas na imagem, mantenha o foco puramente visual e estético."
+        
+        if not settings.OPENAI_API_KEY:
+            raise HTTPException(status_code=503, detail="OpenAI API Key não configurada.")
+            
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        
+        image_url = response.data[0].url
+        return {"image_url": image_url}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Exception in generate_post_image: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno ao gerar a imagem.")
