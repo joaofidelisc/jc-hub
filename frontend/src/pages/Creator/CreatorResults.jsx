@@ -1,386 +1,225 @@
-import React, { useState, useEffect } from 'react';
-import './Creator.css';
-import { toast } from 'react-toastify';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
+import { toast } from 'react-toastify';
+import { formatDateBR } from './creatorConfig';
+import './Creator.css';
 
-function CreatorResults({ results, planId, user, onReset, onNext, onPrev }) {
-  const [activeTab, setActiveTab] = useState(0);
+const authConfig = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } });
+const deepCopy = (value) => JSON.parse(JSON.stringify(value));
+const toInputDate = (value = '') => {
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const [day, month, year] = value.split('/');
+  return year && month && day ? `${year}-${month}-${day}` : '';
+};
+const toBrDate = (value = '') => value ? formatDateBR(value) : '';
+
+function CreatorResults({ results, planId, user, onReset, onNext, onPrev, onRegenerate, regenerating, onPlanChange }) {
+  const [plan, setPlan] = useState(results?.planejamento || []);
+  const [activeNetwork, setActiveNetwork] = useState('');
   const [expandedDay, setExpandedDay] = useState(null);
-  const [plan, setPlan] = useState([]);
   const [generatingImages, setGeneratingImages] = useState({});
   const [generatedImages, setGeneratedImages] = useState({});
+  const [regeneratingPosts, setRegeneratingPosts] = useState({});
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [editNetwork, setEditNetwork] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmRegeneration, setConfirmRegeneration] = useState(false);
+
+  const networks = useMemo(() => {
+    const configured = results?.networks?.map(value => value.toLowerCase().replace(/\s+/g, '_')) || [];
+    const fromContent = Object.keys(plan[0]?.conteudo_por_rede || {});
+    return [...new Set([...configured, ...fromContent])];
+  }, [results?.networks, plan]);
 
   useEffect(() => {
     setPlan(results?.planejamento || []);
+    setExpandedDay(null);
   }, [results]);
 
-  if (plan.length === 0) {
-    return (
-      <div className="creator-container">
-        <div className="creator-card text-center">
-          <h3>Nenhum conteúdo gerado.</h3>
-          <button className="btn btn-primary mt-4" onClick={onReset}>Tentar Novamente</button>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!activeNetwork || !networks.includes(activeNetwork)) setActiveNetwork(networks[0] || 'instagram');
+  }, [activeNetwork, networks]);
 
-  // Get all unique networks present in the generated content
-  const firstItemNetworks = Object.keys(plan[0]?.conteudo_por_rede || {});
-  const networks = firstItemNetworks.length > 0 ? firstItemNetworks : ['instagram'];
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Conteúdo copiado!');
+  const commitPlan = (planJson) => {
+    setPlan(planJson.planejamento || []);
+    onPlanChange?.(planJson);
   };
 
-  const getFunnelInfo = (etapa) => {
-    const e = etapa.toLowerCase();
-    if (e.includes('topo')) {
-      return { label: 'Topo (Atrair)', class: 'funnel-topo', bars: 1 };
-    }
-    if (e.includes('meio')) {
-      return { label: 'Meio (Engajar)', class: 'funnel-meio', bars: 2 };
-    }
-    if (e.includes('fundo')) {
-      return { label: 'Fundo (Vender)', class: 'funnel-fundo', bars: 3 };
-    }
-    return { label: 'Topo (Atrair)', class: 'funnel-topo', bars: 1 };
-  };
-
-  const toggleDone = async (e, index) => {
-    e.stopPropagation();
-    if (!planId) {
-      toast.warning("Este plano não foi salvo corretamente.");
-      return;
-    }
-    
-    // Atualização Otimista
-    const newPlan = [...plan];
-    newPlan[index].feito = !newPlan[index].feito;
-    setPlan(newPlan);
-    
+  const handleCopy = async (item, content) => {
+    const text = [content.titulo || item.tema_central, content.roteiro_ou_legenda, content.legenda_instagram, content.cta].filter(Boolean).join('\n\n');
     try {
-      const token = localStorage.getItem('accessToken');
-      await axios.post(`/api/creator/plan/${planId}/toggle/${index}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-    } catch (err) {
-      // Reverter em caso de erro
-      const revertPlan = [...plan];
-      revertPlan[index].feito = !revertPlan[index].feito;
-      setPlan(revertPlan);
-      toast.error("Erro ao atualizar status.");
+      await navigator.clipboard.writeText(text);
+      toast.success('Conteúdo copiado.');
+    } catch {
+      toast.error('Não foi possível copiar automaticamente.');
     }
   };
 
-  const applyLogoOverlay = (base64Background, logoSrc) => {
-    return new Promise((resolve) => {
-      const bg = new Image();
-      bg.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = bg.width;
-        canvas.height = bg.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bg, 0, 0);
+  const toggleDone = async (event, index) => {
+    event.stopPropagation();
+    if (!planId) return toast.warning('Este planejamento ainda não foi salvo.');
+    const previous = plan;
+    setPlan(current => current.map((post, itemIndex) => itemIndex === index ? { ...post, feito: !post.feito } : post));
+    try {
+      const { data } = await axios.post(`/api/creator/plan/${planId}/toggle/${index}`, {}, authConfig());
+      commitPlan(data.plan_json);
+    } catch (error) {
+      setPlan(previous);
+      toast.error(error.response?.data?.detail || 'Não foi possível atualizar o status.');
+    }
+  };
 
-        if (logoSrc) {
-          const logo = new Image();
-          logo.onload = () => {
-            const maxLogoWidth = canvas.width * 0.25; 
-            const scale = maxLogoWidth / logo.width;
-            const logoWidth = logo.width * scale;
-            const logoHeight = logo.height * scale;
-            
-            const margin = 30;
-            const x = canvas.width - logoWidth - margin;
-            const y = canvas.height - logoHeight - margin;
-            
-            ctx.drawImage(logo, x, y, logoWidth, logoHeight);
-            resolve(canvas.toDataURL('image/png'));
-          };
-          logo.onerror = () => resolve(base64Background);
-          logo.src = logoSrc;
-        } else {
-          resolve(base64Background);
-        }
+  const applyLogoOverlay = (base64Background, logoSource) => new Promise(resolve => {
+    if (!logoSource || !base64Background?.startsWith('data:')) return resolve(base64Background);
+    const background = new Image();
+    background.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = background.width;
+      canvas.height = background.height;
+      const context = canvas.getContext('2d');
+      context.drawImage(background, 0, 0);
+      const logo = new Image();
+      logo.onload = () => {
+        const scale = Math.min(canvas.width * .2 / logo.width, canvas.height * .12 / logo.height);
+        const width = logo.width * scale;
+        const height = logo.height * scale;
+        const margin = canvas.width * .035;
+        context.drawImage(logo, canvas.width - width - margin, canvas.height - height - margin, width, height);
+        resolve(canvas.toDataURL('image/png'));
       };
-      bg.onerror = () => resolve(base64Background);
-      bg.src = base64Background;
-    });
-  };
+      logo.onerror = () => resolve(base64Background);
+      logo.src = logoSource;
+    };
+    background.onerror = () => resolve(base64Background);
+    background.src = base64Background;
+  });
 
-  const handleGenerateImage = async (e, index) => {
-    e.stopPropagation();
-    if (!planId) return toast.warning("Plano não salvo.");
-    
-    setGeneratingImages(prev => ({ ...prev, [index]: true }));
+  const handleGenerateImage = async (event, index) => {
+    event.stopPropagation();
+    if (!planId) return toast.warning('Este planejamento ainda não foi salvo.');
+    const imageKey = `${index}-${activeNetwork}`;
+    setGeneratingImages(current => ({ ...current, [imageKey]: true }));
     try {
-      const token = localStorage.getItem('accessToken');
-      const { data } = await axios.post(`/api/creator/plan/${planId}/generate-image/${index}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      let finalImageUrl = data.image_url;
-      const logo = user?.creator_settings?.logo?.[0];
-      
-      if (logo) {
-         finalImageUrl = await applyLogoOverlay(data.image_url, logo);
-      }
-      
-      setGeneratedImages(prev => ({ ...prev, [index]: finalImageUrl }));
+      const { data } = await axios.post(`/api/creator/plan/${planId}/generate-image/${index}`, {}, authConfig());
+      const image = await applyLogoOverlay(data.image_url, user?.creator_settings?.logo?.[0]);
+      setGeneratedImages(current => ({ ...current, [imageKey]: image }));
       setExpandedDay(index);
-      toast.success("Imagem gerada com sucesso!");
-    } catch (err) {
-      toast.error("Falha ao gerar imagem.");
+      toast.success('Imagem gerada.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Não foi possível gerar a imagem.');
     } finally {
-      setGeneratingImages(prev => ({ ...prev, [index]: false }));
+      setGeneratingImages(current => ({ ...current, [imageKey]: false }));
     }
   };
 
-  const doneCount = plan.filter(i => i.feito).length;
-  const progressPercent = plan.length > 0 ? (doneCount / plan.length) * 100 : 0;
+  const handleRegeneratePost = async (event, index) => {
+    event.stopPropagation();
+    if (!planId) return;
+    setRegeneratingPosts(current => ({ ...current, [index]: true }));
+    try {
+      const { data } = await axios.post(`/api/creator/plan/${planId}/post/${index}/regenerate`, {}, authConfig());
+      commitPlan(data.plan_json);
+      setExpandedDay(index);
+      toast.success('Publicação regenerada sem repetir o restante do calendário.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Não foi possível regenerar esta publicação.');
+    } finally {
+      setRegeneratingPosts(current => ({ ...current, [index]: false }));
+    }
+  };
+
+  const openEditor = (event, index) => {
+    event.stopPropagation();
+    const nextDraft = deepCopy(plan[index]);
+    setDraft(nextDraft);
+    setEditingIndex(index);
+    setEditNetwork(activeNetwork || Object.keys(nextDraft.conteudo_por_rede || {})[0]);
+  };
+
+  const updateDraft = (field, value) => setDraft(current => ({ ...current, [field]: value }));
+  const updateNetworkDraft = (field, value) => setDraft(current => ({
+    ...current,
+    conteudo_por_rede: {
+      ...current.conteudo_por_rede,
+      [editNetwork]: { ...(current.conteudo_por_rede?.[editNetwork] || {}), [field]: value },
+    },
+  }));
+
+  const saveDraft = async (event) => {
+    event.preventDefault();
+    if (!draft.tema_central?.trim()) return toast.warning('Informe o tema central.');
+    setSavingEdit(true);
+    try {
+      const payload = { ...draft, data_sugerida: toBrDate(draft.data_sugerida) };
+      const { data } = await axios.put(`/api/creator/plan/${planId}/post/${editingIndex}`, { post: payload }, authConfig());
+      commitPlan(data.plan_json);
+      setEditingIndex(null);
+      setDraft(null);
+      toast.success('Publicação atualizada e validada no calendário.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Não foi possível salvar a publicação.');
+    } finally { setSavingEdit(false); }
+  };
+
+  if (!plan.length) return <div className="empty-state card"><h3>Nenhuma publicação neste planejamento</h3><p>Crie um novo plano para começar.</p><button className="btn btn-primary" onClick={onReset}>Criar planejamento</button></div>;
+
+  const doneCount = plan.filter(item => item.feito).length;
+  const progress = Math.round((doneCount / plan.length) * 100);
+  const strategyLabel = results?.strategy_label || (results?.strategy === 'funnel' ? 'Funil de vendas' : 'Estratégia editorial');
 
   return (
-    <div className="creator-container">
-      <div className="creator-card" style={{ position: 'relative' }}>
-        <div className="creator-sticky-header">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700' }}>O que a Nova preparou para você ✨</h2>
-          
-          <div className="creator-action-bar">
-            {(onPrev || onNext) && (
-              <div className="segmented-control">
-                <button 
-                  className="nav-btn" 
-                  onClick={onPrev} 
-                  disabled={!onPrev}
-                  title="Planejamento Anterior"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-                <div className="divider"></div>
-                <button 
-                  className="nav-btn" 
-                  onClick={onNext} 
-                  disabled={!onNext}
-                  title="Próximo Planejamento"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                </button>
+    <div className="results-page">
+      <section className="results-header-card">
+        <div className="results-heading-row">
+          <div><span className="results-eyebrow">{results?.period_label || results?.week_label || 'Planejamento editorial'}</span><h2>{results?.objective || 'Calendário de conteúdo'}</h2><div className="results-meta"><span className="badge badge-primary">{strategyLabel}</span><span>{plan.length} publicações</span><span>{networks.length} redes</span></div></div>
+          <div className="results-actions">
+            {(onPrev || onNext) && <div className="history-navigation"><button onClick={onPrev} disabled={!onPrev} title="Planejamento anterior">←</button><button onClick={onNext} disabled={!onNext} title="Próximo planejamento">→</button></div>}
+            <button className="btn btn-secondary" onClick={() => setConfirmRegeneration(true)} disabled={regenerating}>↻ Regenerar plano</button>
+            <button className="btn btn-primary" onClick={onReset}>＋ Novo plano</button>
+          </div>
+        </div>
+        <div className="results-progress"><div><span>Progresso de publicação</span><strong>{doneCount} de {plan.length} concluídas</strong></div><div className="results-progress-track"><i style={{ width: `${progress}%` }}/></div></div>
+        <div className="network-tabs" role="tablist">{networks.map(network => <button key={network} type="button" role="tab" aria-selected={activeNetwork === network} className={activeNetwork === network ? 'active' : ''} onClick={() => setActiveNetwork(network)}>{network.charAt(0).toUpperCase() + network.slice(1)}</button>)}</div>
+      </section>
+
+      <div className="publication-list">
+        {plan.map((item, index) => {
+          const content = item.conteudo_por_rede?.[activeNetwork];
+          if (!content) return null;
+          const expanded = expandedDay === index;
+          const imageKey = `${index}-${activeNetwork}`;
+          return (
+            <article className={`publication-card ${item.feito ? 'published' : ''}`} key={`${item.data_sugerida}-${index}`}>
+              <div className="publication-summary" role="button" tabIndex="0" onClick={() => setExpandedDay(expanded ? null : index)} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) setExpandedDay(expanded ? null : index); }} aria-expanded={expanded}>
+                <span className="publication-date-box"><strong>{item.data_sugerida?.slice(0,2) || '--'}</strong><small>{item.dia?.split('-')[0]?.slice(0,3) || 'Dia'}</small></span>
+                <span className="publication-title"><small>{item.etapa_estrategia || item.etapa_funil || strategyLabel}</small><strong>{content.titulo || item.tema_central}</strong><em>Tema central: {item.tema_central}</em></span>
+                <span className="publication-summary-actions">
+                  <button type="button" className={`publish-status ${item.feito ? "done" : ""}`} onClick={event => toggleDone(event, index)}>{item.feito ? "✓ Publicado" : "Marcar publicado"}</button>
+                  <span className="expand-chevron">{expanded ? '−' : '+'}</span>
+                </span>
               </div>
-            )}
-            
-            <button className="btn-primary-action" onClick={onReset}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-              Novo Plano
-            </button>
-          </div>
-        </div>
 
-        <div className="creator-progress-container mb-3">
-          <div className="d-flex justify-content-between align-items-center mb-1">
-            <span className="progress-label">Progresso da Semana</span>
-            <span className="progress-count">{doneCount} de {plan.length} concluídos</span>
-          </div>
-          <div className="creator-progress-bar-bg">
-            <div className="creator-progress-bar-fill" style={{ width: `${progressPercent}%` }}></div>
-          </div>
-        </div>
-
-        <div className="results-tabs">
-          {networks.map((network, index) => (
-            <button
-              key={network}
-              className={`tab-btn ${index === activeTab ? 'active' : ''}`}
-              onClick={() => setActiveTab(index)}
-            >
-              {network.charAt(0).toUpperCase() + network.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="results-timeline">
-          {plan.map((item, index) => {
-            const isExpanded = expandedDay === index;
-            const networkContent = item.conteudo_por_rede?.[networks[activeTab]];
-            
-            if (!networkContent) return null;
-
-            const funnel = getFunnelInfo(item.etapa_funil);
-
-            return (
-              <div key={index} className="timeline-item">
-                <div className="timeline-marker"></div>
-                <div className={`accordion-item ${item.feito ? 'done' : ''}`}>
-                <div 
-                  className="accordion-header"
-                  onClick={() => setExpandedDay(isExpanded ? null : index)}
-                >
-                  <div className="accordion-title">
-                    <span className="accordion-day">
-                      {item.dia} 
-                      {item.data_sugerida && ` • ${item.data_sugerida}`}
-                    </span>
-                    <span 
-                      className="accordion-theme" 
-                      style={{ 
-                        textDecoration: item.feito ? 'line-through' : 'none', 
-                        opacity: item.feito ? 0.6 : 1,
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      {item.tema_central}
-                    </span>
-                  </div>
-                  <div className="d-flex align-items-center gap-3">
-                    <button 
-                      className={`btn btn-sm ${item.feito ? 'btn-success' : 'btn-outline-secondary'}`} 
-                      onClick={(e) => toggleDone(e, index)}
-                      style={{ borderRadius: '20px', fontSize: '0.75rem', padding: '4px 12px', fontWeight: 600 }}
-                    >
-                      {item.feito ? '✓ Feito' : 'Marcar Feito'}
-                    </button>
-                    <div className="funnel-badge-container">
-                      <div className="funnel-bars">
-                        <div className={`funnel-bar ${funnel.bars >= 1 ? funnel.class : ''}`}></div>
-                        <div className={`funnel-bar ${funnel.bars >= 2 ? funnel.class : ''}`}></div>
-                        <div className={`funnel-bar ${funnel.bars >= 3 ? funnel.class : ''}`}></div>
-                      </div>
-                      <span className={`funnel-badge-text ${funnel.class}`}>
-                        {funnel.label}
-                      </span>
-                    </div>
-                    <div className="d-flex align-items-center gap-2">
-                      <button 
-                        className="creator-action-btn"
-                        style={{ padding: '6px' }}
-                        title="Copiar Conteúdo"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopy(`Tema: ${item.tema_central}\n\n${networkContent.roteiro_ou_legenda}\n\n${networkContent.cta || ''}`);
-                        }}
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                        </svg>
-                      </button>
-
-                      <button 
-                        className="creator-action-btn"
-                        style={{ color: 'var(--primary)', padding: '6px' }}
-                        title="Gerar Imagem"
-                        onClick={(e) => handleGenerateImage(e, index)}
-                        disabled={generatingImages[index]}
-                      >
-                        {generatingImages[index] ? (
-                          <div className="spinner-border spinner-border-sm" role="status" style={{ width: '18px', height: '18px' }}></div>
-                        ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-
-                    <span className="text-muted" style={{ marginLeft: '4px' }}>
-                      {isExpanded ? '▲' : '▼'}
-                    </span>
-                  </div>
+              {expanded && <div className="publication-details">
+                <div className="publication-toolbar">
+                  <span>{content.formato || 'Post'}</span><span>◷ {item.horario_sugerido || 'Horário a definir'}</span>
+                  <div><button onClick={event => handleCopy(item, content)}>Copiar</button><button onClick={event => openEditor(event, index)}>Editar</button><button onClick={event => handleRegeneratePost(event, index)} disabled={regeneratingPosts[index]}>{regeneratingPosts[index] ? 'Regenerando...' : 'Regenerar post'}</button><button onClick={event => handleGenerateImage(event, index)} disabled={generatingImages[imageKey]}>{generatingImages[imageKey] ? 'Gerando...' : 'Gerar imagem'}</button></div>
                 </div>
-                
-                {isExpanded && (
-                  <div className="accordion-body">
-                    <div className="creator-chips-container">
-                      {item.horario_sugerido && (
-                        <div className="pill-chip">
-                          <span className="chip-icon">⏰</span>
-                          {item.horario_sugerido}
-                        </div>
-                      )}
-                      
-                      {item.noticia_tendencia_usada && (
-                        <div className="pill-chip trend">
-                          <span className="chip-icon">🔥</span>
-                          {item.noticia_tendencia_usada}
-                        </div>
-                      )}
-                      
-                      <div className="pill-chip format">
-                        <span className="chip-icon">✨</span>
-                        {networkContent.formato}
-                      </div>
-                    </div>
-                    
-                    {networkContent.roteiro_ou_legenda && (
-                      <div className="script-block mb-4">
-                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
-                          📝 Roteiro / Texto Completo
-                        </h5>
-                        <p style={{ whiteSpace: 'pre-wrap' }}>{networkContent.roteiro_ou_legenda}</p>
-                      </div>
-                    )}
-                    
-                    {networkContent.legenda_instagram && (
-                      <div className="script-block mb-4" style={{ background: 'var(--bg-page)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '12px' }}>
-                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
-                          📲 Legenda para o Instagram
-                        </h5>
-                        <p style={{ whiteSpace: 'pre-wrap' }}>{networkContent.legenda_instagram}</p>
-                      </div>
-                    )}
-                    
-                    {networkContent.descricao_visual && (
-                      <div className="script-block mb-4">
-                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
-                          🖼️ Composição Visual da Imagem
-                        </h5>
-                        <p style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{networkContent.descricao_visual}</p>
-                      </div>
-                    )}
-                    
-                    {networkContent.cta && (
-                      <div className="cta-block mb-4">
-                        <h5>🎯 Call to Action (CTA)</h5>
-                        <p>{networkContent.cta}</p>
-                      </div>
-                    )}
-
-                    {generatedImages[index] && (
-                      <div className="generated-image-block mb-4" style={{ textAlign: 'center' }}>
-                        <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>
-                          🖼️ Imagem Gerada (DALL-E 3)
-                        </h5>
-                        <div style={{ position: 'relative', display: 'inline-block' }}>
-                          <img 
-                            src={generatedImages[index]} 
-                            alt="Gerada por IA" 
-                            style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                          />
-                          <a 
-                            href={generatedImages[index]} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn btn-primary"
-                            style={{ position: 'absolute', bottom: '16px', right: '16px', borderRadius: '50px', fontWeight: 600, boxShadow: '0 4px 12px rgba(20, 184, 166, 0.4)' }}
-                          >
-                            Abrir / Salvar
-                          </a>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-                )}
-              </div>
-              </div>
-            );
-          })}
-        </div>
+                <div className="content-detail-grid">
+                  <section className="content-panel main-copy"><h4>Conteúdo para {activeNetwork}</h4><div className="markdown-content"><ReactMarkdown>{content.roteiro_ou_legenda || 'Conteúdo não informado.'}</ReactMarkdown></div>{content.legenda_instagram && <><h4 className="secondary-copy-title">Legenda</h4><div className="markdown-content"><ReactMarkdown>{content.legenda_instagram}</ReactMarkdown></div></>}</section>
+                  <div className="content-side-column"><section className="content-panel"><h4>Direção visual</h4><div className="markdown-content"><ReactMarkdown>{content.descricao_visual || 'Sem direção visual adicional.'}</ReactMarkdown></div></section><section className="content-panel cta-panel"><h4>Chamada para ação</h4><div className="markdown-content"><ReactMarkdown>{content.cta || 'Sem CTA adicional.'}</ReactMarkdown></div></section></div>
+                </div>
+                {generatedImages[imageKey] && <div className="generated-image"><img src={generatedImages[imageKey]} alt={`Imagem para ${content.titulo || item.tema_central}`}/><a className="btn btn-secondary btn-sm" href={generatedImages[imageKey]} target="_blank" rel="noreferrer">Abrir imagem</a></div>}
+              </div>}
+            </article>
+          );
+        })}
       </div>
+
+      {editingIndex !== null && draft && <div className="modal-overlay"><form className="modal-box post-editor-modal" onSubmit={saveDraft}><header className="modal-header"><div><h3>Editar publicação</h3><p>Alterações são verificadas contra todos os outros planejamentos.</p></div><button type="button" className="modal-close" onClick={() => setEditingIndex(null)}>×</button></header><div className="post-editor-body"><div className="form-row"><div className="form-group"><label className="form-label">Data</label><input type="date" className="form-input" value={toInputDate(draft.data_sugerida)} min={results?.period_start} max={results?.period_end} onChange={event => updateDraft('data_sugerida', event.target.value)} /></div><div className="form-group"><label className="form-label">Horário</label><input className="form-input" value={draft.horario_sugerido || ''} onChange={event => updateDraft('horario_sugerido', event.target.value)} /></div></div><div className="form-group"><label className="form-label">Tema central</label><input className="form-input" value={draft.tema_central || ''} onChange={event => updateDraft('tema_central', event.target.value)} /></div><div className="form-group"><label className="form-label">Papel na estratégia</label><input className="form-input" value={draft.etapa_estrategia || draft.etapa_funil || ''} onChange={event => updateDraft('etapa_estrategia', event.target.value)} /></div><div className="editor-network-tabs">{Object.keys(draft.conteudo_por_rede || {}).map(network => <button type="button" key={network} className={editNetwork === network ? 'active' : ''} onClick={() => setEditNetwork(network)}>{network}</button>)}</div><div className="form-group"><label className="form-label">Título para {editNetwork}</label><input className="form-input" value={draft.conteudo_por_rede?.[editNetwork]?.titulo || ''} onChange={event => updateNetworkDraft('titulo', event.target.value)} /></div><div className="form-row"><div className="form-group"><label className="form-label">Formato</label><input className="form-input" value={draft.conteudo_por_rede?.[editNetwork]?.formato || ''} onChange={event => updateNetworkDraft('formato', event.target.value)} /></div><div className="form-group"><label className="form-label">CTA</label><input className="form-input" value={draft.conteudo_por_rede?.[editNetwork]?.cta || ''} onChange={event => updateNetworkDraft('cta', event.target.value)} /></div></div><div className="form-group"><label className="form-label">Conteúdo</label><textarea className="form-textarea editor-main-text" value={draft.conteudo_por_rede?.[editNetwork]?.roteiro_ou_legenda || ''} onChange={event => updateNetworkDraft('roteiro_ou_legenda', event.target.value)} /></div><div className="form-group"><label className="form-label">Direção visual</label><textarea className="form-textarea" value={draft.conteudo_por_rede?.[editNetwork]?.descricao_visual || ''} onChange={event => updateNetworkDraft('descricao_visual', event.target.value)} /></div></div><div className="form-actions"><button type="button" className="btn btn-secondary" onClick={() => setEditingIndex(null)}>Cancelar</button><button className="btn btn-primary" disabled={savingEdit}>{savingEdit ? 'Validando...' : 'Salvar publicação'}</button></div></form></div>}
+
+      {confirmRegeneration && <div className="modal-overlay"><div className="modal-box overwrite-modal"><span className="overwrite-icon">↻</span><h3>Regenerar este planejamento?</h3><p>A Nova manterá as publicações marcadas como feitas e recriará as demais considerando todo o calendário publicado e agendado.</p><div><button className="btn btn-secondary" onClick={() => setConfirmRegeneration(false)}>Cancelar</button><button className="btn btn-primary" onClick={() => { setConfirmRegeneration(false); onRegenerate(); }}>Regenerar planejamento</button></div></div></div>}
     </div>
   );
 }

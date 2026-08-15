@@ -51,14 +51,14 @@ const Register = () => {
           </div>
 
           <div className="auth-hero">
-            <h2>Crie sua conta em segundos</h2>
-            <p>Comece a automatizar o atendimento do seu negócio com inteligência artificial e integrações poderosas.</p>
+            <h2>Comece a planejar seu conteúdo</h2>
+            <p>Crie sua conta e configure seu perfil de negócio. A Nova vai gerar cronogramas personalizados para suas redes sociais.</p>
           </div>
 
           <ul className="auth-features">
-            <li><span className="feature-dot"/> Setup em menos de 5 minutos</li>
-            <li><span className="feature-dot"/> Sem limite de palavras-chave</li>
-            <li><span className="feature-dot"/> Suporte a múltiplos posts e contas</li>
+            <li><span className="feature-dot"/> Descreva seu negócio uma vez, gere quantos planos quiser</li>
+            <li><span className="feature-dot"/> Seis estratégias editoriais à sua escolha</li>
+            <li><span className="feature-dot"/> Conteúdo adaptado para cada rede social</li>
           </ul>
         </div>
       </div>

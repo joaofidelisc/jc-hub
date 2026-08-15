@@ -1,188 +1,90 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useLayout } from '../../components/AppLayout/LayoutContext';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './Home.css';
 
-const Home = () => {
+const parseDate = (value = '') => {
+  const [day, month, year] = value.split('/').map(Number);
+  return year ? new Date(year, month - 1, day) : new Date(8640000000000000);
+};
+
+function Home() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState([]);
-
-  // Use layout context without the default title, we will render our own Dashboard title
-  useLayout('', '', user);
+  const [loading, setLoading] = useState(true);
+  useLayout('Visão geral', 'Acompanhe sua operação de conteúdo', user);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const token = localStorage.getItem('accessToken');
-        if (!token) { navigate('/login', { replace: true }); return; }
-
-        const { data } = await axios.get('/api/me', { headers: { Authorization: `Bearer ${token}` } });
-        if (!data?.user) { navigate('/login', { replace: true }); return; }
-        setUser(data.user);
-
-        const histRes = await axios.get('/api/creator/history', { headers: { Authorization: `Bearer ${token}` } });
-        setHistory(histRes.data || []);
+        if (!token) return navigate('/login', { replace: true });
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        const [userResponse, historyResponse] = await Promise.all([axios.get('/api/me', config), axios.get('/api/creator/history', config)]);
+        setUser(userResponse.data.user);
+        setHistory(historyResponse.data || []);
       } catch {
         navigate('/login', { replace: true });
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
     loadData();
   }, [navigate]);
 
-  if (loading) {
-    return (
-      <div className="page-loading">
-        <div className="loading-spinner"/>
-        <p>Carregando dados...</p>
-      </div>
-    );
-  }
+  const dashboard = useMemo(() => {
+    const posts = history.flatMap(plan => (plan.plan_json?.planejamento || []).map(post => ({ ...post, plan })));
+    const done = posts.filter(post => post.feito).length;
+    const upcoming = posts.filter(post => !post.feito).sort((a, b) => parseDate(a.data_sugerida) - parseDate(b.data_sugerida)).slice(0, 6);
+    const strategies = history.reduce((result, plan) => {
+      const label = plan.plan_json?.strategy_label || 'Funil de vendas';
+      result[label] = (result[label] || 0) + (plan.plan_json?.planejamento?.length || 0);
+      return result;
+    }, {});
+    return { posts, done, upcoming, strategies };
+  }, [history]);
 
-  const totalPlans = history.length;
-  let totalPosts = 0;
-  let donePosts = 0;
-  
-  history.forEach(item => {
-    const posts = item.plan_json?.planejamento || [];
-    totalPosts += posts.length;
-    donePosts += posts.filter(p => p.feito).length;
-  });
+  if (loading) return <div className="page-loading"><span className="loading-spinner"/><p>Preparando sua visão geral...</p></div>;
 
-  const progressPct = totalPosts > 0 ? Math.round((donePosts / totalPosts) * 100) : 0;
+  const settings = user?.creator_settings || {};
+  const isConfigured = Boolean(settings.niche && settings.persona && settings.products && settings.networks?.length);
+  if (!isConfigured) return <div className="dashboard-onboarding"><span>✦</span><div><small>Bem-vindo ao JC Hub</small><h2>Prepare a Nova para trabalhar com a sua marca</h2><p>Salve as informações do negócio uma única vez e gere calendários coerentes para cada rede social.</p><Link to="/meu-negocio" className="btn btn-primary">Configurar Meu Negócio</Link></div></div>;
 
-  // Mock data for BarChart (Visit And Sales Statistics)
-  const barData = [
-    { name: 'JAN', chin: 40, usa: 24, uk: 24 },
-    { name: 'FEB', chin: 30, usa: 13, uk: 22 },
-    { name: 'MAR', chin: 20, usa: 48, uk: 22 },
-    { name: 'APR', chin: 27, usa: 39, uk: 20 },
-    { name: 'MAY', chin: 18, usa: 48, uk: 21 },
-    { name: 'JUN', chin: 23, usa: 38, uk: 25 },
-    { name: 'JUL', chin: 34, usa: 43, uk: 21 },
-    { name: 'AUG', chin: 44, usa: 35, uk: 19 },
-  ];
-
-  // Mock data for PieChart (Traffic Sources)
-  const pieData = [
-    { name: 'Search Engines', value: 30, color: '#90caf9' }, // Light Blue
-    { name: 'Direct Click', value: 30, color: '#07cdae' }, // Green
-    { name: 'Bookmarks Click', value: 40, color: '#fe7096' }, // Pink
-  ];
+  const progress = dashboard.posts.length ? Math.round(dashboard.done / dashboard.posts.length * 100) : 0;
+  const strategyEntries = Object.entries(dashboard.strategies).sort((a,b) => b[1] - a[1]).slice(0,4);
+  const strategyTotal = strategyEntries.reduce((sum, item) => sum + item[1], 0) || 1;
+  const colors = ['#7b61e8', '#2583ff', '#f5a623', '#13ad77'];
+  let cursor = 0;
+  const gradientStops = strategyEntries.map(([, count], index) => { const start = cursor; cursor += count / strategyTotal * 100; return `${colors[index]} ${start}% ${cursor}%`; }).join(', ');
 
   return (
-    <div>
-      <div className="page-header-title">
-        <div className="icon-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-            <polyline points="9 22 9 12 15 12 15 22"/>
-          </svg>
-        </div>
-        <h3>Dashboard</h3>
-      </div>
+    <div className="dashboard-page">
+      <section className="dashboard-welcome"><div><span className="dashboard-eyebrow">{settings.niche}</span><h2>Olá, {user?.name?.split(' ')[0]}. Seu conteúdo está em movimento.</h2><p>A Nova usa todo o calendário para manter continuidade entre o que já foi publicado e o que vem a seguir.</p></div><Link className="btn btn-primary" to="/criador-ia">＋ Criar planejamento</Link></section>
 
-      {/* Gradient Stats Cards */}
-      <div className="purple-stats-grid">
-        {/* Weekly Sales equivalent */}
-        <div className="purple-card card-danger">
-          <div className="purple-card-header">
-            <h4 className="purple-card-title">Progresso Semanal</h4>
-            <div className="purple-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
-            </div>
-          </div>
-          <div className="purple-card-value">{progressPct}%</div>
-          <div className="purple-card-trend">Aumentado em 60%</div>
-        </div>
+      <section className="dashboard-stats">
+        <article><span className="metric-icon blue">▦</span><div><strong>{history.length}</strong><small>Planejamentos</small><p>períodos salvos</p></div></article>
+        <article><span className="metric-icon violet">✦</span><div><strong>{dashboard.posts.length}</strong><small>Conteúdos</small><p>gerados pela Nova</p></div></article>
+        <article><span className="metric-icon green">✓</span><div><strong>{dashboard.done}</strong><small>Publicados</small><p>{progress}% do calendário</p></div></article>
+        <article><span className="metric-icon orange">◷</span><div><strong>{dashboard.posts.length - dashboard.done}</strong><small>Agendados</small><p>próximas entregas</p></div></article>
+      </section>
 
-        {/* Weekly Orders equivalent */}
-        <div className="purple-card card-info">
-          <div className="purple-card-header">
-            <h4 className="purple-card-title">Postagens Geradas</h4>
-            <div className="purple-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 3v5h5M16 13H8M16 17H8M10 9H8"/></svg>
-            </div>
-          </div>
-          <div className="purple-card-value">{totalPosts}</div>
-          <div className="purple-card-trend">Diminuído em 10%</div>
-        </div>
+      <div className="dashboard-grid">
+        <section className="dashboard-panel upcoming-panel">
+          <header><div><h3>Próximas publicações</h3><p>Conteúdos ainda não marcados como publicados</p></div><Link to="/planejamentos">Ver todos</Link></header>
+          {!dashboard.upcoming.length ? <div className="empty-state"><h3>Nenhuma publicação pendente</h3><p>Crie um novo período para alimentar seu calendário.</p><Link to="/criador-ia" className="btn btn-primary">Criar planejamento</Link></div> : <div className="dashboard-post-list">{dashboard.upcoming.map((post, index) => {
+            const network = Object.keys(post.conteudo_por_rede || {})[0];
+            const title = post.conteudo_por_rede?.[network]?.titulo || post.tema_central;
+            return <button key={`${post.plan.id}-${index}`} onClick={() => navigate('/criador-ia', { state: { selectedPlan: post.plan } })}><span className="post-date"><strong>{post.data_sugerida?.slice(0,2)}</strong><small>{post.dia?.slice(0,3)}</small></span><span className="post-info"><small>{network || 'Rede social'} · {post.horario_sugerido?.split('—')[0]}</small><strong>{title}</strong><em>{post.etapa_estrategia || post.etapa_funil || 'Conteúdo editorial'}</em></span><span className="post-arrow">→</span></button>;
+          })}</div>}
+        </section>
 
-        {/* Visitors Online equivalent */}
-        <div className="purple-card card-success">
-          <div className="purple-card-header">
-            <h4 className="purple-card-title">Planos Ativos</h4>
-            <div className="purple-card-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            </div>
-          </div>
-          <div className="purple-card-value">{totalPlans}</div>
-          <div className="purple-card-trend">Aumentado em 5%</div>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="charts-grid">
-        <div className="chart-card">
-          <div className="chart-card-header">
-            <h3 className="chart-card-title">Estatísticas de Visitas e Vendas</h3>
-            <div className="chart-legend">
-              <div className="chart-legend-item"><span className="chart-legend-dot dot-primary"></span> CHN</div>
-              <div className="chart-legend-item"><span className="chart-legend-dot dot-danger"></span> USA</div>
-              <div className="chart-legend-item"><span className="chart-legend-dot dot-info"></span> UK</div>
-            </div>
-          </div>
-          <div style={{ width: '100%', height: '300px' }}>
-            <ResponsiveContainer>
-              <BarChart data={barData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }} barSize={10}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
-                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }} />
-                <Bar dataKey="chin" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="usa" fill="var(--danger)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="uk" fill="var(--info)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="chart-card">
-          <div className="chart-card-header">
-            <h3 className="chart-card-title">Fontes de Tráfego</h3>
-          </div>
-          <div style={{ width: '100%', height: '220px', display: 'flex', justifyContent: 'center' }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" stroke="none">
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: 'var(--shadow-md)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {pieData.map((item, index) => (
-              <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: item.color }}></span>
-                  {item.name}
-                </div>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <aside className="dashboard-side">
+          <section className="dashboard-panel strategy-panel"><header><div><h3>Mix estratégico</h3><p>Distribuição dos conteúdos</p></div></header>{strategyEntries.length ? <><div className="strategy-chart" style={{ background: `conic-gradient(${gradientStops})` }}><span><strong>{dashboard.posts.length}</strong><small>posts</small></span></div><div className="strategy-legend">{strategyEntries.map(([label,count],index) => <div key={label}><i style={{ background: colors[index] }}/><span>{label}</span><strong>{count}</strong></div>)}</div></> : <div className="empty-state compact"><p>O mix aparece após o primeiro plano.</p></div>}</section>
+          <section className="dashboard-panel business-summary"><header><div><h3>Meu negócio</h3><p>Preferências em uso</p></div><Link to="/meu-negocio">Editar</Link></header><dl><div><dt>Tom de voz</dt><dd>{settings.tone || 'Não definido'}</dd></div><div><dt>Redes</dt><dd>{settings.networks?.join(', ')}</dd></div><div><dt>Estratégia padrão</dt><dd>{settings.defaultStrategy ? 'Configurada' : 'Funil de vendas'}</dd></div></dl></section>
+        </aside>
       </div>
     </div>
   );
-};
+}
 
 export default Home;

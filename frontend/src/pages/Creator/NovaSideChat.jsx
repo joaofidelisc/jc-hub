@@ -1,132 +1,119 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import ReactMarkdown from 'react-markdown';
 import './Creator.css';
 
-function NovaSideChat({ contextData }) {
+function NovaSideChat({ contextData, planId, onPlanChange }) {
   const [messages, setMessages] = useState([
-    { sender: 'nova', text: "Oii! Eu sou a Nova ✨. Acabei de gerar o seu planejamento! Como posso te ajudar a refinar ou tirar dúvidas sobre essas ideias?" }
+    {
+      sender: 'nova',
+      text: 'Seu planejamento está aberto por aqui. Posso tirar dúvidas **e editar o calendário para você** — é só me dizer o que deseja mudar.',
+    },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
   const handleSend = async (forcedText = null) => {
-    const textToSend = forcedText || inputValue;
-    if (!textToSend.trim() || isTyping) return;
+    const textToSend = (forcedText || inputValue).trim();
+    if (!textToSend || isTyping) return;
 
     if (!forcedText) setInputValue('');
-    
-    const newMessages = [...messages, { sender: 'user', text: textToSend.trim() }];
+    const newMessages = [...messages, { sender: 'user', text: textToSend }];
     setMessages(newMessages);
     setIsTyping(true);
 
     try {
       const token = localStorage.getItem('accessToken');
-      
-      const chatHistory = newMessages.map(msg => ({
-        role: msg.sender === 'nova' ? 'model' : 'user',
-        text: msg.text
+      const chatHistory = newMessages.map(message => ({
+        role: message.sender === 'nova' ? 'model' : 'user',
+        text: message.text,
       }));
+      const { data } = await axios.post(
+        '/api/creator/chat',
+        { messages: chatHistory, contextData, planId },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
 
-      const response = await axios.post('/api/creator/chat', { 
-        messages: chatHistory,
-        contextData: contextData // send the generated plan context to the backend
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const replyText = response.data.response;
-      
-      if (replyText) {
-        setMessages(prev => [...prev, { sender: 'nova', text: replyText }]);
+      if (data.plan_json && onPlanChange) {
+        onPlanChange(data.plan_json);
+        toast.success('A Nova editou e salvou o planejamento.');
       }
-      
+      if (data.response) {
+        setMessages(current => [...current, { sender: 'nova', text: data.response, edited: Boolean(data.edited) }]);
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Ops! Tive um problema ao processar. Pode repetir?");
+      const detail = error.response?.data?.detail || 'Não consegui concluir essa alteração. Pode tentar novamente?';
+      setMessages(current => [...current, { sender: 'nova', text: detail, error: true }]);
+      toast.error(detail);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') handleSend();
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter') handleSend();
   };
 
   return (
     <div className="nova-side-chat">
       <div className="side-chat-header">
-        <svg viewBox="0 0 24 24" width="24" height="24" className="nova-avatar-small" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="2" y1="12" x2="22" y2="12" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-        </svg>
-        <h3>Falar com a Nova</h3>
+        <span className="nova-avatar-small">N</span>
+        <div>
+          <h3>Nova</h3>
+          <p><i /> Edita e salva este plano</p>
+        </div>
       </div>
-      
+
       <div className="side-chat-messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message-wrapper ${msg.sender === 'user' ? 'user' : 'nova'}`}>
-            {msg.sender === 'nova' && (
-              <div className="nova-avatar">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-              </div>
-            )}
-            <div className={`chat-bubble ${msg.sender === 'user' ? 'user' : 'nova'}`}>
-              {msg.text}
+        {messages.map((message, index) => (
+          <div key={index} className={`message-wrapper ${message.sender === 'user' ? 'user' : 'nova'}`}>
+            {message.sender === 'nova' && <div className="nova-avatar">N</div>}
+            <div className={`chat-bubble ${message.sender === 'user' ? 'user' : 'nova'} ${message.edited ? 'edited' : ''} ${message.error ? 'chat-error' : ''}`}>
+              {message.edited && <span className="chat-edit-label">✓ Planejamento atualizado</span>}
+              <div className="markdown-content"><ReactMarkdown>{message.text}</ReactMarkdown></div>
             </div>
           </div>
         ))}
-        
+
         {messages.length === 1 && !isTyping && (
           <div className="nova-quick-chips">
-            <p className="chips-title">Sugestões rápidas:</p>
+            <p className="chips-title">Experimente pedir:</p>
             <div className="chips-container">
-              <button className="quick-chip" onClick={() => handleSend("Me dê outra ideia para Quinta-feira")}>✨ Outra ideia para Quinta-feira</button>
-              <button className="quick-chip" onClick={() => handleSend("Transforme o post de Terça em um roteiro de vídeo")}>🎬 Roteiro de vídeo para Terça</button>
-              <button className="quick-chip" onClick={() => handleSend("Foque mais em conteúdos de venda (Fundo de Funil)")}>💰 Focar mais em vendas</button>
+              <button className="quick-chip" onClick={() => handleSend('Troque o próximo post por uma ideia de bastidores, sem repetir os outros temas.')}>Trocar uma ideia</button>
+              <button className="quick-chip" onClick={() => handleSend('Deixe os títulos do LinkedIn mais analíticos e profissionais, mantendo a proposta de cada post.')}>Ajustar o LinkedIn</button>
+              <button className="quick-chip" onClick={() => handleSend('Revise os CTAs do Instagram para incentivar mais comentários, sem mudar os temas.')}>Melhorar os CTAs</button>
             </div>
           </div>
         )}
 
         {isTyping && (
           <div className="message-wrapper nova">
-            <div className="nova-avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-            </div>
+            <div className="nova-avatar">N</div>
             <div className="chat-bubble nova typing">
-              <div className="dot"></div><div className="dot"></div><div className="dot"></div>
+              <div className="dot" /><div className="dot" /><div className="dot" />
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
-      
+
       <div className="side-chat-input">
-        <input 
-          type="text" 
-          placeholder="Tire dúvidas sobre o planejamento..." 
+        <input
+          type="text"
+          placeholder="Peça uma edição ou tire uma dúvida..."
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onChange={event => setInputValue(event.target.value)}
+          onKeyDown={handleKeyDown}
           disabled={isTyping}
         />
-        <button onClick={handleSend} disabled={!inputValue.trim() || isTyping}>
+        <button type="button" onClick={() => handleSend()} disabled={!inputValue.trim() || isTyping} aria-label="Enviar mensagem">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="22" y1="2" x2="11" y2="13" />
             <polygon points="22 2 15 22 11 13 2 9 22 2" />

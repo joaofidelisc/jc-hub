@@ -1,498 +1,348 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import './Creator.css'; 
+import {
+  AVAILABLE_DAYS,
+  AVAILABLE_NETWORKS,
+  CONTENT_STRATEGIES,
+  formatDateBR,
+  getMaxEndDate,
+  getTodayISO,
+  maskDateBR,
+  parseDateBR,
+  toLocalISODate,
+} from './creatorConfig';
+import './Creator.css';
 
-function CreatorForm({ onSubmit, loading, user }) {
-  const [step, setStep] = useState(1);
-  const totalSteps = 6;
-  
-  const [formData, setFormData] = useState({
-    niche: '',
-    businessInfo: '',
-    logo: [],
-    prints: [],
-    persona: '',
-    businessHours: '',
-    tone: 'Profissional e Amigável',
-    networks: [],
-    days: [],
-    week: 'Semana Atual'
-  });
+const addDays = (isoDate, amount) => {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + amount);
+  return toLocalISODate(date);
+};
 
-  const availableNetworks = ['Instagram', 'Facebook', 'LinkedIn', 'Twitter', 'TikTok'];
-  const availableDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+function BrazilianDateInput({ label, name, value, onChange, min, max, helper }) {
+  const [displayValue, setDisplayValue] = useState(formatDateBR(value));
 
   useEffect(() => {
-    // Tenta descobrir se já existe um plano para a semana atual
-    const checkCurrentWeek = async () => {
-      try {
-        const token = localStorage.getItem('accessToken');
-        const { data } = await axios.get('/api/creator/history', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (data && data.length > 0) {
-          setFormData(prev => ({ ...prev, week: 'Próxima Semana' }));
-        }
-      } catch (err) {
-        // Ignora erros silenciados
-      }
-    };
-    checkCurrentWeek();
+    setDisplayValue(formatDateBR(value));
+  }, [value]);
 
-    // Load user settings if they exist
-    if (user?.creator_settings) {
-      setFormData(prev => ({ ...prev, ...user.creator_settings, week: prev.week }));
+  const emitISO = (isoValue) => onChange({ target: { name, value: isoValue } });
+
+  const handleTextChange = (event) => {
+    const masked = maskDateBR(event.target.value);
+    setDisplayValue(masked);
+    if (!masked) {
+      emitISO('');
+      return;
     }
-  }, [user]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (masked.length !== 10) return;
+    const isoValue = parseDateBR(masked);
+    if (isoValue && (!min || isoValue >= min) && (!max || isoValue <= max)) emitISO(isoValue);
   };
 
-  const handleCheckbox = (type, value) => {
-    setFormData(prev => {
-      const current = prev[type];
-      const updated = current.includes(value) 
-        ? current.filter(item => item !== value)
-        : [...current, value];
-      return { ...prev, [type]: updated };
-    });
+  const resetInvalidValue = () => {
+    const isoValue = parseDateBR(displayValue);
+    const outsideRange = isoValue && ((min && isoValue < min) || (max && isoValue > max));
+    if (!isoValue || outsideRange) setDisplayValue(formatDateBR(value));
   };
-
-  const handleImageUpload = (e, field) => {
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({
-          ...prev,
-          [field]: [...(prev[field] || []), reader.result]
-        }));
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removeImage = (index, field) => {
-    setFormData(prev => {
-      const newImages = [...prev[field]];
-      newImages.splice(index, 1);
-      return { ...prev, [field]: newImages };
-    });
-  };
-
-  const saveSettingsToDB = async (dataToSave) => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      await axios.put('/api/profile/creator_settings', { settings: dataToSave }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-    } catch (error) {
-      console.error("Failed to save creator settings", error);
-    }
-  };
-
-  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
-  const [checkingPlan, setCheckingPlan] = useState(false);
-
-  const proceedWithSubmit = () => {
-    setShowOverwriteModal(false);
-    saveSettingsToDB({
-      niche: formData.niche,
-      businessInfo: formData.businessInfo,
-      persona: formData.persona,
-      businessHours: formData.businessHours,
-      tone: formData.tone,
-      networks: formData.networks,
-      days: formData.days,
-      logo: formData.logo,
-      prints: formData.prints
-    });
-    onSubmit(formData);
-  };
-
-  const handleNext = async () => {
-    if (step === 1 && !formData.niche.trim()) return toast.warning("Preencha o nicho");
-    if (step === 3 && !formData.persona.trim()) return toast.warning("Preencha o público-alvo");
-    if (step === 4 && !formData.businessHours.trim()) return toast.warning("Preencha o horário de atendimento");
-    if (step === 5 && formData.networks.length === 0) return toast.warning("Selecione pelo menos uma rede social");
-    
-    if (step < totalSteps) {
-      setStep(step + 1);
-    } else {
-      if (formData.days.length === 0) return toast.warning("Selecione pelo menos um dia");
-      
-      setCheckingPlan(true);
-      try {
-        const token = localStorage.getItem('accessToken');
-        const { data } = await axios.get(`/api/creator/check-plan?week=${encodeURIComponent(formData.week)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        if (data.exists) {
-          setShowOverwriteModal(true);
-        } else {
-          proceedWithSubmit();
-        }
-      } catch (err) {
-        console.error(err);
-        proceedWithSubmit(); // Proceed anyway on error
-      } finally {
-        setCheckingPlan(false);
-      }
-    }
-  };
-
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-  };
-
-  // Progress percentage
-  const progress = (step / totalSteps) * 100;
 
   return (
-    <div className="creator-form-container">
-      <div className="creator-form-card" style={{ width: '100%', maxWidth: '600px' }}>
-        
-        {loading ? (
-          <div className="nova-loading-state">
-            <div className="nova-loader">
-              <div className="nova-ring"></div>
-              <div className="nova-ring"></div>
-              <div className="nova-avatar-circle">N</div>
-            </div>
-            <h3>Consultando Nova...</h3>
-            <p>Analisando o seu perfil, compreendendo seu público e estruturando o melhor planejamento. Isso pode levar alguns segundos.</p>
-          </div>
-        ) : (
-          <>
-            {/* Progress Bar */}
-            <div style={{ width: '100%', backgroundColor: 'var(--bg-page)', height: '6px', borderRadius: '4px', marginBottom: '32px', overflow: 'hidden' }}>
-              <div style={{ width: `${progress}%`, backgroundColor: 'var(--primary)', height: '100%', transition: 'width 0.3s ease' }}></div>
-            </div>
+    <div className="form-group date-field">
+      <div className="date-label-row">
+        <label className="form-label" htmlFor={`${name}-display`}>{label}</label>
+        {helper && <span>{helper}</span>}
+      </div>
+      <div className="date-input-shell">
+        <input
+          id={`${name}-display`}
+          type="text"
+          className="form-input"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="dd/mm/aaaa"
+          maxLength={10}
+          value={displayValue}
+          onChange={handleTextChange}
+          onBlur={resetInvalidValue}
+        />
+        <label className="date-picker-trigger" title={`Selecionar ${label.toLowerCase()}`}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+          <input
+            type="date"
+            name={name}
+            value={value}
+            min={min}
+            max={max}
+            onChange={event => emitISO(event.target.value)}
+            aria-label={`Selecionar ${label.toLowerCase()}`}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
 
-        <div className="form-header" style={{ marginBottom: '32px' }}>
-          {step === 1 && (
-            <>
-              <h2>Qual é o seu nicho?</h2>
-              <p>Me conte qual é a área de atuação da sua marca ou negócio.</p>
-            </>
-          )}
-          {step === 2 && (
-            <>
-              <h2>Sobre o seu negócio</h2>
-              <p>Fale mais sobre seus produtos, serviços, diferenciais ou histórico.</p>
-            </>
-          )}
-          {step === 3 && (
-            <>
-              <h2>Quem é o seu público?</h2>
-              <p>Descreva a persona ou o público-alvo principal que você deseja alcançar.</p>
-            </>
-          )}
-          {step === 4 && (
-            <>
-              <h2>Horários e Tom de Voz</h2>
-              <p>Detalhes operacionais e a "personalidade" da sua marca nas redes.</p>
-            </>
-          )}
-          {step === 5 && (
-            <>
-              <h2>Onde você vai postar?</h2>
-              <p>Selecione as redes sociais foco deste planejamento.</p>
-            </>
-          )}
-          {step === 6 && (
-            <>
-              <h2>Dias de Publicação</h2>
-              <p>Quais dias da semana você costuma ou quer postar?</p>
-            </>
-          )}
-        </div>
+function StrategyModal({ strategy, onClose }) {
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
 
-        <div className="creator-form">
-          {step === 1 && (
-            <div className="form-group">
-              <input 
-                type="text" 
-                name="niche" 
-                placeholder="Ex: Clínica Odontológica, Loja de Roupas..." 
-                value={formData.niche} 
-                onChange={handleChange} 
-                onKeyPress={(e) => e.key === 'Enter' && handleNext()}
-                autoFocus
-              />
-            </div>
-          )}
+  if (!strategy) return null;
 
-          {step === 2 && (
-            <div className="form-group">
-              <textarea
-                name="businessInfo"
-                placeholder="Ex: Oferecemos serviços de clareamento a laser, temos 10 anos de mercado, nosso diferencial é o atendimento humanizado..."
-                value={formData.businessInfo}
-                onChange={handleChange}
-                autoFocus
-                style={{ height: '120px', resize: 'vertical' }}
-              />
-              <div style={{ marginTop: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                  Logotipo (Opcional)
-                </label>
-                
-                <div className="upload-dropzone">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    multiple 
-                    onChange={(e) => handleImageUpload(e, 'logo')} 
-                    id="logo-upload"
-                    style={{ display: 'none' }}
-                  />
-                  <label htmlFor="logo-upload" className="dropzone-label">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <div className="dropzone-text">Clique para adicionar o logotipo</div>
-                    <div className="dropzone-subtext">A IA analisará as cores e estilo da sua marca</div>
-                  </label>
-                </div>
-
-                {formData.logo && formData.logo.length > 0 && (
-                  <div className="prints-preview-container">
-                    {formData.logo.map((print, idx) => (
-                      <div key={idx} className="print-preview-item">
-                        <img src={print} alt="preview" />
-                        <button 
-                          onClick={() => removeImage(idx, 'logo')}
-                          className="print-remove-btn"
-                          title="Remover"
-                        >×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                  Posts Anteriores (Opcional)
-                </label>
-                
-                <div className="upload-dropzone">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    multiple 
-                    onChange={(e) => handleImageUpload(e, 'prints')} 
-                    id="prints-upload"
-                    style={{ display: 'none' }}
-                  />
-                  <label htmlFor="prints-upload" className="dropzone-label">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    <div className="dropzone-text">Clique para adicionar prints do Instagram</div>
-                    <div className="dropzone-subtext">A IA usará como referência de estilo visual para os próximos posts</div>
-                  </label>
-                </div>
-
-                {formData.prints && formData.prints.length > 0 && (
-                  <div className="prints-preview-container">
-                    {formData.prints.map((print, idx) => (
-                      <div key={idx} className="print-preview-item">
-                        <img src={print} alt="preview" />
-                        <button 
-                          onClick={() => removeImage(idx, 'prints')}
-                          className="print-remove-btn"
-                          title="Remover"
-                        >×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="form-group">
-              <input 
-                type="text" 
-                name="persona" 
-                placeholder="Ex: Trabalhadores CLT de 25 a 45 anos, Empreendedores locais..." 
-                value={formData.persona} 
-                onChange={handleChange} 
-                onKeyPress={(e) => e.key === 'Enter' && handleNext()}
-                autoFocus
-              />
-            </div>
-          )}
-
-          {step === 4 && (
-            <>
-              <div className="form-group">
-                <label>Horário de Atendimento</label>
-                <input 
-                  type="text" 
-                  name="businessHours" 
-                  placeholder="Ex: Seg a Sex das 08h às 18h" 
-                  value={formData.businessHours} 
-                  onChange={handleChange} 
-                  autoFocus
-                />
-              </div>
-              <div className="form-group">
-                <label>Tom de Voz</label>
-                <select name="tone" value={formData.tone} onChange={handleChange}>
-                  <option value="Profissional e Amigável">Profissional e Amigável</option>
-                  <option value="Descontraído e Humorístico">Descontraído e Humorístico</option>
-                  <option value="Sério e Corporativo">Sério e Corporativo</option>
-                  <option value="Inspirador e Motivacional">Inspirador e Motivacional</option>
-                </select>
-              </div>
-            </>
-          )}
-
-          {step === 5 && (
-            <div className="checkbox-grid">
-              {availableNetworks.map(net => (
-                <label key={net} className={`checkbox-label ${formData.networks.includes(net) ? 'active' : ''}`}>
-                  <input 
-                    type="checkbox" 
-                    checked={formData.networks.includes(net)}
-                    onChange={() => handleCheckbox('networks', net)}
-                  />
-                  <span>{net}</span>
-                </label>
-              ))}
-            </div>
-          )}
-
-          {step === 6 && (
-            <>
-              <div className="form-group mb-4">
-                <label>Para qual semana?</label>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <label className={`checkbox-label ${formData.week === 'Semana Atual' ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center' }}>
-                    <input 
-                      type="radio" 
-                      name="week" 
-                      value="Semana Atual"
-                      checked={formData.week === 'Semana Atual'}
-                      onChange={handleChange}
-                      style={{ display: 'none' }}
-                    />
-                    <span>Semana Atual</span>
-                  </label>
-                  <label className={`checkbox-label ${formData.week === 'Próxima Semana' ? 'active' : ''}`} style={{ flex: 1, textAlign: 'center' }}>
-                    <input 
-                      type="radio" 
-                      name="week" 
-                      value="Próxima Semana"
-                      checked={formData.week === 'Próxima Semana'}
-                      onChange={handleChange}
-                      style={{ display: 'none' }}
-                    />
-                    <span>Próxima Semana</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="checkbox-grid">
-                {availableDays.map(day => (
-                  <label key={day} className={`checkbox-label ${formData.days.includes(day) ? 'active' : ''}`}>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.days.includes(day)}
-                      onChange={() => handleCheckbox('days', day)}
-                    />
-                    <span>{day}</span>
-                  </label>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
-            {step > 1 && (
-              <button 
-                type="button" 
-                onClick={handleBack}
-                disabled={loading}
-                style={{ 
-                  flex: 1, 
-                  padding: '14px', 
-                  borderRadius: '8px', 
-                  border: '1px solid var(--border-color)', 
-                  background: 'transparent', 
-                  fontWeight: 600, 
-                  cursor: 'pointer', 
-                  color: 'var(--text-primary)' 
-                }}
-              >
-                Voltar
-              </button>
-            )}
-            
-            <button 
-              type="button" 
-              onClick={handleNext}
-              disabled={loading}
-              className="generate-btn"
-              style={{ flex: 2, margin: 0, padding: '14px' }}
-            >
-              {loading ? (
-                "Gerando..."
-              ) : step < totalSteps ? (
-                "Próximo"
-              ) : (
-                "Gerar Planejamento"
-              )}
-            </button>
+  return (
+    <div className="modal-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="modal-box strategy-explainer-modal" role="dialog" aria-modal="true" aria-labelledby="strategy-modal-title" style={{ '--strategy-accent': strategy.accent }}>
+        <header className="strategy-modal-header">
+          <span className="strategy-modal-mark"><i /></span>
+          <div><small>Estratégia editorial</small><h3 id="strategy-modal-title">{strategy.label}</h3><p>{strategy.short}</p></div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Fechar">×</button>
+        </header>
+        <div className="strategy-modal-body">
+          <section><h4>O que significa</h4><p>{strategy.definition}</p></section>
+          <section><h4>O caminho que a Nova seguirá</h4><ol className="strategy-path">{strategy.path.map((step, index) => <li key={step.title}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{step.title}</strong><p>{step.text}</p></div></li>)}</ol></section>
+          <div className="strategy-modal-insights">
+            <article><span>✦</span><div><strong>Como a IA decide</strong><p>{strategy.aiBehavior}</p></div></article>
+            <article><span>◎</span><div><strong>Funciona melhor para</strong><p>{strategy.idealFor}</p></div></article>
           </div>
         </div>
-        </>
-        )}
+        <footer><button type="button" className="btn btn-secondary" onClick={onClose}>Fechar</button></footer>
+      </section>
+    </div>
+  );
+}
+
+function GenerationExperience({ onCancel, cancelling }) {
+  return (
+    <div className="generation-overlay" role="dialog" aria-modal="true" aria-labelledby="generation-title">
+      <div className="generation-modal">
+        <div className="nova-generation-scene" aria-hidden="true">
+          <span className="nova-orbit orbit-one"><i /></span>
+          <span className="nova-orbit orbit-two"><i /></span>
+          <span className="nova-generation-mark">N</span>
+          <span className="generation-card card-one"><i /><b /><b /></span>
+          <span className="generation-card card-two"><i /><b /><b /></span>
+        </div>
+        <span className="generation-eyebrow"><i /> Nova está trabalhando</span>
+        <h2 id="generation-title">Montando seu planejamento</h2>
+        <p>A Nova está cruzando estratégia, preferências e todo o seu histórico editorial antes de escrever cada sugestão.</p>
+        <div className="generation-steps">
+          <span style={{ '--step-delay': '0s' }}><i /> Analisando calendários publicados e futuros</span>
+          <span style={{ '--step-delay': '.7s' }}><i /> Distribuindo o caminho da estratégia</span>
+          <span style={{ '--step-delay': '1.4s' }}><i /> Adaptando títulos e textos para cada rede</span>
+        </div>
+        <button type="button" className="btn btn-secondary generation-cancel" onClick={onCancel} disabled={cancelling}>
+          {cancelling ? 'Cancelando com segurança...' : 'Cancelar criação'}
+        </button>
+        <small>Ao cancelar, o planejamento não será salvo.</small>
+      </div>
+    </div>
+  );
+}
+
+function CreatorForm({ onSubmit, onCancel, loading, cancelling = false, user }) {
+  const today = useMemo(getTodayISO, []);
+  const [checkingPlan, setCheckingPlan] = useState(false);
+  const [showOverwriteModal, setShowOverwriteModal] = useState(false);
+  const [strategyModal, setStrategyModal] = useState(null);
+  const [existingLabel, setExistingLabel] = useState('');
+  const [contextStats, setContextStats] = useState({ plans: 0, posts: 0, loaded: false });
+  const [formData, setFormData] = useState({
+    startDate: today,
+    endDate: addDays(today, 27),
+    objective: '',
+    strategy: 'funnel',
+    strategyDetails: '',
+    networks: [],
+    days: [],
+  });
+
+  const settings = user?.creator_settings || {};
+  const hasSettings = Boolean(settings.niche?.trim() && settings.persona?.trim() && settings.products?.trim() && settings.networks?.length && settings.days?.length);
+  const maxEndDate = getMaxEndDate(formData.startDate);
+
+  useEffect(() => {
+    if (!user) return;
+    setFormData(current => ({
+      ...current,
+      strategy: settings.defaultStrategy || current.strategy,
+      networks: settings.networks || [],
+      days: settings.days || [],
+    }));
+  }, [user]);
+
+  useEffect(() => {
+    const loadContextStats = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const { data } = await axios.get('/api/creator/history', { headers: { Authorization: `Bearer ${token}` } });
+        const plans = data || [];
+        setContextStats({
+          plans: plans.length,
+          posts: plans.reduce((total, plan) => total + (plan.plan_json?.planejamento?.length || 0), 0),
+          loaded: true,
+        });
+      } catch {
+        setContextStats(current => ({ ...current, loaded: true }));
+      }
+    };
+    loadContextStats();
+  }, []);
+
+  const handleChange = ({ target: { name, value } }) => {
+    setFormData(current => {
+      if (name !== 'startDate') return { ...current, [name]: value };
+      if (!value) return { ...current, startDate: '', endDate: '' };
+      const nextMax = getMaxEndDate(value);
+      const currentDurationInvalid = !current.endDate || current.endDate < value || current.endDate > nextMax;
+      return { ...current, startDate: value, endDate: currentDurationInvalid ? addDays(value, 27) : current.endDate };
+    });
+  };
+
+  const toggleSelection = (field, value) => setFormData(current => {
+    const values = current[field] || [];
+    return { ...current, [field]: values.includes(value) ? values.filter(item => item !== value) : [...values, value] };
+  });
+
+  const getPublicationCount = () => {
+    if (!formData.startDate || !formData.endDate || !formData.days.length) return 0;
+    const indexes = new Set(formData.days.map(day => AVAILABLE_DAYS.indexOf(day)));
+    const [sy, sm, sd] = formData.startDate.split('-').map(Number);
+    const [ey, em, ed] = formData.endDate.split('-').map(Number);
+    const cursor = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    let count = 0;
+    while (cursor <= end) {
+      const mondayIndex = (cursor.getDay() + 6) % 7;
+      if (indexes.has(mondayIndex)) count += 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return count;
+  };
+
+  const validate = () => {
+    if (!formData.startDate || !formData.endDate) return 'Escolha as datas de início e término.';
+    if (formData.endDate < formData.startDate) return 'A data final deve ser posterior à inicial.';
+    if (formData.endDate > maxEndDate) return 'O período máximo permitido é de dois meses.';
+    if (!formData.objective.trim()) return 'Explique o objetivo deste planejamento.';
+    if (!formData.strategy) return 'Escolha uma estratégia.';
+    if (!formData.networks.length) return 'Selecione pelo menos uma rede social.';
+    if (!formData.days.length) return 'Selecione pelo menos um dia de publicação.';
+    if (!getPublicationCount()) return 'O período escolhido não contém nenhum dos dias selecionados.';
+    return '';
+  };
+
+  const submitPlan = () => {
+    setShowOverwriteModal(false);
+    onSubmit({ ...settings, ...formData });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const validationMessage = validate();
+    if (validationMessage) return toast.warning(validationMessage);
+
+    setCheckingPlan(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const { data } = await axios.get('/api/creator/check-plan', {
+        params: { start_date: formData.startDate, end_date: formData.endDate },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (data.exists) {
+        setExistingLabel(data.label || 'este período');
+        setShowOverwriteModal(true);
+      } else {
+        submitPlan();
+      }
+    } catch (error) {
+      console.error(error);
+      submitPlan();
+    } finally {
+      setCheckingPlan(false);
+    }
+  };
+
+  if (!user) return <div className="page-loading"><span className="loading-spinner"/><p>Carregando suas preferências...</p></div>;
+
+  if (!hasSettings) {
+    return (
+      <div className="creator-setup-empty card">
+        <span className="setup-empty-icon">⌂</span>
+        <span className="badge badge-warning">Configuração necessária</span>
+        <h2>Conte primeiro sobre o seu negócio</h2>
+        <p>Preencha nicho, público, ofertas e canais uma única vez. Essas informações serão a base de todos os planejamentos.</p>
+        <Link to="/meu-negocio" className="btn btn-primary">Configurar Meu Negócio</Link>
+      </div>
+    );
+  }
+
+  const selectedStrategy = CONTENT_STRATEGIES.find(item => item.id === formData.strategy);
+  const publicationCount = getPublicationCount();
+  const continuityText = contextStats.loaded && contextStats.plans
+    ? `${contextStats.plans} planejamento${contextStats.plans === 1 ? '' : 's'} e ${contextStats.posts} conteúdo${contextStats.posts === 1 ? '' : 's'} serão considerados antes desta geração.`
+    : 'Todo conteúdo publicado e futuro será considerado antes desta geração.';
+
+  return (
+    <form className="planner-form" onSubmit={handleSubmit} aria-busy={loading}>
+      <div className="planner-main-column">
+        <section className="planner-section-card">
+          <header><span>01</span><div><h2>Período do planejamento</h2><p>Escolha qualquer intervalo de até dois meses.</p></div></header>
+          <div className="planner-section-body">
+            <div className="date-range-grid">
+              <BrazilianDateInput label="Começa em" name="startDate" value={formData.startDate} onChange={handleChange} />
+              <span className="date-range-arrow">→</span>
+              <BrazilianDateInput label="Termina em" name="endDate" value={formData.endDate} min={formData.startDate} max={maxEndDate} onChange={handleChange} helper={`Limite: ${formatDateBR(maxEndDate)}`} />
+            </div>
+            <label className="form-label">Dias com publicação</label>
+            <div className="planner-day-grid">{AVAILABLE_DAYS.map(day => <button key={day} type="button" className={formData.days.includes(day) ? 'selected' : ''} onClick={() => toggleSelection('days', day)}>{day.slice(0, 3)}</button>)}</div>
+          </div>
+        </section>
+
+        <section className="planner-section-card">
+          <header><span>02</span><div><h2>Estratégia</h2><p>Escolha o caminho editorial; use “Entender” para ver como a Nova irá raciocinar.</p></div></header>
+          <div className="planner-section-body">
+            <div className="strategy-card-grid">{CONTENT_STRATEGIES.map(strategy => <article role="radio" aria-checked={formData.strategy === strategy.id} tabIndex="0" key={strategy.id} className={`strategy-card ${formData.strategy === strategy.id ? 'selected' : ''}`} onClick={() => setFormData(current => ({ ...current, strategy: strategy.id }))} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') setFormData(current => ({ ...current, strategy: strategy.id })); }} style={{ '--strategy-accent': strategy.accent }}><i/><span className="strategy-card-copy"><strong>{strategy.label}</strong><small>{strategy.description}</small><button type="button" onClick={event => { event.stopPropagation(); setStrategyModal(strategy); }}>Entender estratégia <b>→</b></button></span><b className="strategy-check">{formData.strategy === strategy.id ? '✓' : ''}</b></article>)}</div>
+            <div className="form-group"><label className="form-label">Orientação adicional <span className="optional-label">opcional</span></label><input className="form-input" name="strategyDetails" value={formData.strategyDetails} onChange={handleChange} placeholder="Ex.: lançamento em 20/09, priorizar geração de leads, campanha de inverno..." /></div>
+          </div>
+        </section>
+
+        <section className="planner-section-card">
+          <header><span>03</span><div><h2>Objetivo e canais</h2><p>O mesmo tema será adaptado ao comportamento de cada público.</p></div></header>
+          <div className="planner-section-body">
+            <div className="form-group"><label className="form-label">O que você quer alcançar? <b className="required">*</b></label><textarea className="form-textarea planner-objective" name="objective" value={formData.objective} onChange={handleChange} placeholder="Ex.: gerar 30 pedidos de orçamento para o novo serviço, reforçando autoridade sem usar descontos." /></div>
+            <label className="form-label">Redes deste planejamento</label>
+            <div className="planner-network-grid">{AVAILABLE_NETWORKS.map(network => <button key={network} type="button" className={formData.networks.includes(network) ? 'selected' : ''} onClick={() => toggleSelection('networks', network)}><span>{network.slice(0,2).toUpperCase()}</span>{network}</button>)}</div>
+            <p className="network-adaptation-note"><strong>Títulos relacionados, textos diferentes.</strong> A Nova preserva o tema central, mas muda gancho, profundidade, linguagem e CTA para cada rede.</p>
+          </div>
+        </section>
       </div>
 
-      {showOverwriteModal && (
-        <div className="mobile-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ maxWidth: '420px', width: '90%', background: 'var(--bg-page)', padding: '32px', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', marginBottom: '20px' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            
-            <h3 style={{ margin: '0 0 12px 0', color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 700 }}>
-              Planejamento já existe
-            </h3>
-            
-            <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 28px 0', fontSize: '0.95rem' }}>
-              Você já gerou um planejamento para a <strong>{formData.week}</strong>. Se você gerar novamente, o conteúdo anterior será <strong>substituído permanentemente</strong>. Deseja continuar?
-            </p>
-            
-            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-              <button 
-                onClick={() => setShowOverwriteModal(false)}
-                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 600, transition: 'all 0.2s' }}
-                onMouseOver={(e) => e.target.style.background = 'var(--bg-surface)'}
-                onMouseOut={(e) => e.target.style.background = 'transparent'}
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={proceedWithSubmit}
-                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#ef4444', color: '#fff', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', transition: 'all 0.2s' }}
-                onMouseOver={(e) => e.target.style.filter = 'brightness(1.1)'}
-                onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
-              >
-                Substituir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <aside className="planner-summary-card">
+        <span className="summary-eyebrow">Resumo do plano</span>
+        <h3>{settings.niche}</h3>
+        <Link to="/meu-negocio">Editar preferências</Link>
+        <dl>
+          <div><dt>Estratégia</dt><dd><i style={{ background: selectedStrategy?.accent }}/>{selectedStrategy?.label}</dd></div>
+          <div><dt>Publicações</dt><dd>{publicationCount}</dd></div>
+          <div><dt>Redes</dt><dd>{formData.networks.length}</dd></div>
+          <div><dt>Continuidade</dt><dd><span className="continuity-dot"/> Histórico ativo</dd></div>
+        </dl>
+        <div className="summary-info-box"><strong>Todo o calendário entra no contexto</strong><p>{continuityText}</p></div>
+        <button className="btn btn-primary planner-submit" disabled={loading || checkingPlan}>{checkingPlan ? 'Verificando período...' : 'Gerar planejamento'}</button>
+        <small className="summary-footnote">A geração pode levar alguns minutos, dependendo do período e do número de redes.</small>
+      </aside>
+
+      {strategyModal && <StrategyModal strategy={strategyModal} onClose={() => setStrategyModal(null)} />}
+      {loading && <GenerationExperience onCancel={onCancel} cancelling={cancelling} />}
+      {showOverwriteModal && <div className="modal-overlay"><div className="modal-box overwrite-modal"><span className="overwrite-icon">↻</span><h3>Já existe um plano neste período</h3><p>O planejamento de <strong>{existingLabel}</strong> será regenerado. Publicações marcadas como feitas serão preservadas; as demais serão substituídas considerando todos os outros planos.</p><div><button type="button" className="btn btn-secondary" onClick={() => setShowOverwriteModal(false)}>Cancelar</button><button type="button" className="btn btn-primary" onClick={submitPlan}>Regenerar período</button></div></div></div>}
+    </form>
   );
 }
 

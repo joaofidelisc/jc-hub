@@ -1,149 +1,139 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useLayout } from '../../components/AppLayout/LayoutContext';
 import './Creator.css';
 
-function getWeeksForMonth(year, month) {
-  const weeks = [];
-  let d = new Date(year, month, 1);
-  let day = d.getDay();
-  let diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  let currentMonday = new Date(d.setDate(diff));
+const getPlanStatus = (posts) => {
+  const done = posts.filter(post => post.feito).length;
+  if (posts.length && done === posts.length) return { id: 'done', label: 'Concluído' };
+  if (done > 0) return { id: 'in-progress', label: 'Em andamento' };
+  return { id: 'planned', label: 'Planejado' };
+};
 
-  for (let i = 0; i < 4; i++) {
-    let weekStart = new Date(currentMonday);
-    let weekEnd = new Date(currentMonday);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    
-    const pad = (n) => n.toString().padStart(2, '0');
-    const label = `de ${pad(weekStart.getDate())}/${pad(weekStart.getMonth()+1)}/${weekStart.getFullYear()} a ${pad(weekEnd.getDate())}/${pad(weekEnd.getMonth()+1)}/${weekEnd.getFullYear()}`;
-    
-    weeks.push({
-      title: `Semana ${i+1}`,
-      label,
-      start: weekStart,
-      end: weekEnd
-    });
-    currentMonday.setDate(currentMonday.getDate() + 7);
-  }
-  return weeks;
-}
+const authConfig = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` } });
 
 function Planejamentos() {
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  
-  useLayout('Planejamentos', 'Gerencie seus calendários de conteúdo', user);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [planToDelete, setPlanToDelete] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  useLayout('Planejamentos', 'Todo o seu calendário editorial em um só lugar', user);
 
   useEffect(() => {
-    const fetchHistory = async () => {
+    const loadData = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        const [meRes, histRes] = await Promise.all([
-          axios.get('/api/me', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/creator/history', { headers: { Authorization: `Bearer ${token}` } })
+        const [userResponse, historyResponse] = await Promise.all([
+          axios.get('/api/me', authConfig()),
+          axios.get('/api/creator/history', authConfig()),
         ]);
-        setUser(meRes.data.user);
-        setHistory(histRes.data);
+        setUser(userResponse.data.user);
+        setHistory(historyResponse.data || []);
       } catch (error) {
-        console.error(error);
-        toast.error('Erro ao carregar dados.');
+        toast.error(error.response?.data?.detail || 'Não foi possível carregar os planejamentos.');
       } finally {
         setLoading(false);
       }
     };
-    fetchHistory();
+    loadData();
   }, []);
 
-  const getProgress = (planJson) => {
-    const posts = planJson?.planejamento || [];
-    if (posts.length === 0) return { done: 0, total: 0 };
-    const done = posts.filter(p => p.feito).length;
-    return { done, total: posts.length };
+  const summary = useMemo(() => history.reduce((totals, plan) => {
+    const posts = plan.plan_json?.planejamento || [];
+    totals.plans += 1;
+    totals.posts += posts.length;
+    totals.done += posts.filter(post => post.feito).length;
+    totals.scheduled += posts.filter(post => !post.feito).length;
+    return totals;
+  }, { plans: 0, posts: 0, done: 0, scheduled: 0 }), [history]);
+
+  const filteredPlans = useMemo(() => history.filter(plan => {
+    const data = plan.plan_json || {};
+    const posts = data.planejamento || [];
+    const status = getPlanStatus(posts);
+    const haystack = `${data.period_label || data.week_label || ''} ${data.objective || ''} ${data.strategy_label || ''}`.toLowerCase();
+    return (statusFilter === 'all' || status.id === statusFilter) && haystack.includes(search.toLowerCase().trim());
+  }).sort((a, b) => {
+    const aDate = a.plan_json?.period_start || a.created_at;
+    const bDate = b.plan_json?.period_start || b.created_at;
+    return String(bDate).localeCompare(String(aDate));
+  }), [history, search, statusFilter]);
+
+  const handleDeletePlan = async () => {
+    if (!planToDelete || deletingId) return;
+    setDeletingId(planToDelete.id);
+    try {
+      await axios.delete(`/api/creator/plan/${planToDelete.id}`, authConfig());
+      setHistory(current => current.filter(plan => plan.id !== planToDelete.id));
+      setPlanToDelete(null);
+      toast.success('Planejamento apagado.');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Não foi possível apagar o planejamento.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
-  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const currentMonthName = `${monthNames[currentDate.getMonth()]} de ${currentDate.getFullYear()}`;
-  const weeks = getWeeksForMonth(currentDate.getFullYear(), currentDate.getMonth());
-
-  const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  
-  const handleSelect = (plan) => {
-    navigate('/criador-ia', { state: { selectedPlan: plan } });
-  };
+  if (loading) return <div className="page-loading"><span className="loading-spinner"/><p>Carregando planejamentos...</p></div>;
 
   return (
-    <div className="creator-planning-container" style={{ width: '100%', maxWidth: '800px', margin: '0 auto', padding: '24px 0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>Meus Planejamentos</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-card)', padding: '8px 16px', borderRadius: 'var(--radius-full)', border: '1px solid var(--border)' }}>
-          <button onClick={handlePrevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center' }}>{currentMonthName}</span>
-          <button onClick={handleNextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
-        </div>
-      </div>
+    <div className="planning-page">
+      <section className="planning-stats-grid">
+        <article><span className="planning-stat-icon blue">▦</span><div><small>Planejamentos</small><strong>{summary.plans}</strong><p>períodos criados</p></div></article>
+        <article><span className="planning-stat-icon violet">✦</span><div><small>Conteúdos</small><strong>{summary.posts}</strong><p>publicações geradas</p></div></article>
+        <article><span className="planning-stat-icon green">✓</span><div><small>Publicados</small><strong>{summary.done}</strong><p>marcados como feitos</p></div></article>
+        <article><span className="planning-stat-icon orange">◷</span><div><small>Agendados</small><strong>{summary.scheduled}</strong><p>próximos conteúdos</p></div></article>
+      </section>
 
-      {loading ? (
-        <div className="text-center py-5">
-          <p style={{ color: 'var(--text-secondary)' }}>Carregando seus planejamentos...</p>
+      <section className="planning-table-card">
+        <header className="planning-table-header">
+          <div><h2>Calendários de conteúdo</h2><p>Abra um planejamento para revisar, editar ou regenerar.</p></div>
+          <Link className="btn btn-primary" to="/criador-ia">＋ Novo planejamento</Link>
+        </header>
+        <div className="planning-filters">
+          <label className="planning-search"><span>⌕</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar objetivo, período ou estratégia..." /></label>
+          <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">Todos os status</option><option value="planned">Planejados</option><option value="in-progress">Em andamento</option><option value="done">Concluídos</option></select>
         </div>
-      ) : (
-        <div className="planning-groups" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {weeks.map((week, idx) => {
-            const planForWeek = history.find(h => h.plan_json?.week_label === week.label);
-            
-            if (planForWeek) {
-              const { done, total } = getProgress(planForWeek.plan_json);
-              const isAllDone = total > 0 && done === total;
-              const progressPct = total > 0 ? (done / total) * 100 : 0;
-              
-              return (
-                <div key={idx} className="creator-card planning-card" onClick={() => handleSelect(planForWeek)} style={{ padding: '24px', cursor: 'pointer', position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, height: '4px', width: `${progressPct}%`, backgroundColor: isAllDone ? 'var(--success)' : 'var(--primary)', transition: 'width 0.3s' }}></div>
-                  
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                      <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>{week.title}</h3>
-                      {isAllDone && <span className="badge badge-success">CONCLUÍDO</span>}
-                    </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>{week.label}</p>
-                  </div>
-                  
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: 'var(--text-primary)', fontWeight: 600, margin: '0 0 4px 0' }}>{done} de {total} posts feitos</p>
-                    <span style={{ color: 'var(--primary)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                      Visualizar <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </span>
-                  </div>
-                </div>
-              );
-            } else {
-              return (
-                <div key={idx} className="creator-card planning-card" onClick={() => navigate('/criador-ia')} style={{ padding: '24px', cursor: 'pointer', borderStyle: 'dashed', backgroundColor: 'var(--bg-subtle)', opacity: 0.8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-secondary)' }}>{week.title}</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>{week.label}</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ color: 'var(--text-muted)', margin: '0 0 4px 0', fontWeight: 500 }}>Ainda não gerado</p>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Clique para gerar plano</span>
-                  </div>
-                </div>
-              );
-            }
-          })}
-        </div>
-      )}
+
+        {!filteredPlans.length ? (
+          <div className="empty-state">
+            <h3>{history.length ? 'Nenhum resultado encontrado' : 'Seu calendário ainda está vazio'}</h3>
+            <p>{history.length ? 'Ajuste a busca ou o filtro.' : 'Crie o primeiro planejamento para começar.'}</p>
+            {!history.length && <Link className="btn btn-primary" to="/criador-ia">Criar planejamento</Link>}
+          </div>
+        ) : (
+          <div className="planning-table-wrap">
+            <table className="planning-table">
+              <thead><tr><th>Período e objetivo</th><th>Estratégia</th><th>Redes</th><th>Progresso</th><th>Status</th><th aria-label="Ações"/></tr></thead>
+              <tbody>{filteredPlans.map(plan => {
+                const data = plan.plan_json || {};
+                const posts = data.planejamento || [];
+                const done = posts.filter(post => post.feito).length;
+                const progress = posts.length ? Math.round(done / posts.length * 100) : 0;
+                const status = getPlanStatus(posts);
+                const networks = data.networks || Object.keys(posts[0]?.conteudo_por_rede || {});
+                return (
+                  <tr key={plan.id} onClick={() => navigate('/criador-ia', { state: { selectedPlan: plan } })}>
+                    <td><strong>{data.period_label || data.week_label || 'Período não informado'}</strong><span>{data.objective || 'Planejamento editorial'}</span></td>
+                    <td><span className="strategy-table-badge">{data.strategy_label || 'Funil de vendas'}</span></td>
+                    <td><div className="network-avatar-stack">{networks.slice(0,4).map(network => <i key={network} title={network}>{network.slice(0,2).toUpperCase()}</i>)}{networks.length > 4 && <b>+{networks.length - 4}</b>}</div></td>
+                    <td><div className="table-progress"><span><i style={{ width: `${progress}%` }}/></span><small>{done}/{posts.length}</small></div></td>
+                    <td><span className={`plan-status ${status.id}`}>{status.label}</span></td>
+                    <td><div className="planning-row-actions"><button type="button" className="delete-plan-button" title="Apagar planejamento" aria-label="Apagar planejamento" onClick={event => { event.stopPropagation(); setPlanToDelete(plan); }}><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg></button><button type="button" className="open-plan-button" aria-label="Abrir planejamento">→</button></div></td>
+                  </tr>
+                );
+              })}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {planToDelete && <div className="modal-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deletingId) setPlanToDelete(null); }}><div className="modal-box delete-plan-modal" role="dialog" aria-modal="true" aria-labelledby="delete-plan-title"><span className="delete-plan-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg></span><h3 id="delete-plan-title">Apagar este planejamento?</h3><p>O período <strong>{planToDelete.plan_json?.period_label || planToDelete.plan_json?.week_label || 'selecionado'}</strong> e todas as suas publicações serão removidos do calendário usado pela Nova. Esta ação não pode ser desfeita.</p><div><button type="button" className="btn btn-secondary" disabled={Boolean(deletingId)} onClick={() => setPlanToDelete(null)}>Cancelar</button><button type="button" className="btn btn-danger" disabled={Boolean(deletingId)} onClick={handleDeletePlan}>{deletingId ? 'Apagando...' : 'Apagar planejamento'}</button></div></div></div>}
     </div>
   );
 }

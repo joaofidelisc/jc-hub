@@ -10,10 +10,10 @@ const Login = () => {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const onChange = (event) => setForm(current => ({ ...current, [event.target.name]: event.target.value }));
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (event) => {
+    event.preventDefault();
     setSubmitting(true);
     try {
       const { data } = await axios.post('/api/login', {
@@ -24,56 +24,61 @@ const Login = () => {
       localStorage.setItem('accessToken', data.access_token);
       toast.success('Login realizado com sucesso!');
       navigate('/', { replace: true });
-    } catch (err) {
-      toast.error(err?.response?.data?.error || 'Falha ao entrar. Verifique suas credenciais.');
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || error?.response?.data?.error || 'Falha ao entrar. Verifique suas credenciais.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="auth-page">
-      {/* Left panel */}
-      <div className="auth-panel">
+    <main className="auth-page">
+      <section className="auth-panel" aria-label="JC Hub Content Studio">
+        <div className="auth-panel-grid" aria-hidden="true" />
         <div className="auth-panel-inner">
           <div className="auth-logo">
-            <div className="auth-logo-icon">
-              <svg viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="8" width="18" height="12" rx="2" fill="currentColor" opacity=".3"/>
-                <path d="M8 8V6a4 4 0 118 0v2M12 13v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <span>JC Hub</span>
+            <span className="auth-logo-icon">JC</span>
+            <span className="auth-logo-copy"><strong>JC Hub</strong><small>Content Studio</small></span>
           </div>
 
           <div className="auth-hero">
-            <h2>Sua central de automação inteligente</h2>
-            <p>Conecte Instagram, Messenger e IA para gerenciar e escalar o atendimento do seu negócio.</p>
+            <span className="auth-eyebrow"><i /> Estratégia e criação em um só lugar</span>
+            <h2>Conteúdo consistente.<br/><em>Decisões mais inteligentes.</em></h2>
+            <p>A Nova transforma a identidade do seu negócio em um calendário editorial conectado, sem repetir ideias.</p>
+          </div>
+
+          <div className="auth-product-preview" aria-hidden="true">
+            <div className="auth-preview-head">
+              <span><i /> Planejamento de agosto</span>
+              <small>12 conteúdos</small>
+            </div>
+            <div className="auth-preview-row">
+              <b>18</b>
+              <span><strong>Autoridade que gera confiança</strong><small>LinkedIn · Artigo</small></span>
+              <i className="preview-status">Pronto</i>
+            </div>
+            <div className="auth-preview-row">
+              <b>20</b>
+              <span><strong>Bastidores da sua entrega</strong><small>Instagram · Carrossel</small></span>
+              <i className="preview-status scheduled">Agendado</i>
+            </div>
           </div>
 
           <ul className="auth-features">
-            <li>
-              <span className="feature-dot"/>
-              Respostas e mensagens automatizadas
-            </li>
-            <li>
-              <span className="feature-dot"/>
-              Inteligência artificial integrada
-            </li>
-            <li>
-              <span className="feature-dot"/>
-              Plataforma central unificada
-            </li>
+            <li><span>✓</span> Planeje qualquer período de até dois meses</li>
+            <li><span>✓</span> Conteúdo adaptado para cada rede social</li>
+            <li><span>✓</span> Edite o calendário conversando com a Nova</li>
           </ul>
         </div>
-      </div>
+      </section>
 
-      {/* Right form */}
-      <div className="auth-form-panel">
+      <section className="auth-form-panel">
+        <div className="auth-mobile-logo"><span>JC</span><strong>JC Hub</strong></div>
         <div className="auth-form-wrap">
+          <span className="auth-form-kicker">Bem-vindo de volta</span>
           <div className="auth-form-header">
-            <h1>Entrar</h1>
-            <p>Bem-vindo de volta! Acesse sua conta abaixo.</p>
+            <h1>Acesse seu workspace</h1>
+            <p>Entre para continuar planejando o conteúdo do seu negócio.</p>
           </div>
 
           <form onSubmit={onSubmit} className="auth-form">
@@ -89,6 +94,7 @@ const Login = () => {
                 onChange={onChange}
                 required
                 autoComplete="email"
+                autoFocus
               />
             </div>
 
@@ -110,8 +116,7 @@ const Login = () => {
                 <button
                   type="button"
                   className="password-toggle"
-                  onClick={() => setShowPassword(v => !v)}
-                  tabIndex={-1}
+                  onClick={() => setShowPassword(current => !current)}
                   aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPassword ? (
@@ -128,19 +133,15 @@ const Login = () => {
             </div>
 
             <button className="btn btn-primary auth-submit" type="submit" disabled={submitting}>
-              {submitting ? (
-                <><span className="loading-spinner-sm"/>&nbsp;Entrando...</>
-              ) : 'Entrar na plataforma'}
+              {submitting ? <><span className="loading-spinner-sm" /> Entrando...</> : <>Entrar na plataforma <span aria-hidden="true">→</span></>}
             </button>
           </form>
 
-          <p className="auth-alt">
-            Ainda não tem conta?{' '}
-            <Link to="/register">Criar conta grátis</Link>
-          </p>
+          <p className="auth-alt">Ainda não tem uma conta? <Link to="/register">Criar conta grátis</Link></p>
         </div>
-      </div>
-    </div>
+        <p className="auth-form-footer">Planejamento editorial assistido por IA</p>
+      </section>
+    </main>
   );
 };
 
