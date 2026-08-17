@@ -3,3 +3,25 @@
 .fatal-error-card>span { width: 48px; height: 48px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 50%; background: var(--danger-bg); color: var(--danger); font-weight: 800; }
 .fatal-error-card h1 { font-size: 1.25rem; }
 .fatal-error-card p { margin: 10px 0 22px; color: var(--text-secondary); font-size: .86rem; line-height: 1.6; }
+
+
+/* Toasts: feedback compacto, legível e seguro em telas pequenas */
+.Toastify__toast-container { z-index: 9999; width: min(390px, calc(100vw - 32px)); padding: 0; }
+.Toastify__toast { min-height: 64px; margin-bottom: 12px; padding: 13px 38px 13px 14px; border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 13px; color: var(--text-primary); background: #fff; box-shadow: 0 12px 32px rgba(31, 45, 66, .15); font-family: inherit; font-size: .78rem; line-height: 1.45; }
+.Toastify__toast--success { border-left-color: var(--success); }
+.Toastify__toast--error { border-left-color: var(--danger); }
+.Toastify__toast--warning { border-left-color: var(--warning); }
+.Toastify__toast--info { border-left-color: var(--primary); }
+.Toastify__toast-body { gap: 10px; margin: 0; padding: 0; }
+.Toastify__toast-icon { width: 20px; margin: 0; }
+.Toastify__close-button { top: 12px; right: 12px; color: var(--text-muted); opacity: .8; }
+.Toastify__close-button:hover { color: var(--text-primary); opacity: 1; }
+.Toastify__progress-bar { height: 3px; background: var(--primary); opacity: .8; }
+.Toastify__toast--success .Toastify__progress-bar { background: var(--success); }
+.Toastify__toast--error .Toastify__progress-bar { background: var(--danger); }
+.Toastify__toast--warning .Toastify__progress-bar { background: var(--warning); }
+@media (max-width: 600px) {
+  .Toastify__toast-container { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); left: 16px; width: auto; }
+  .Toastify__toast { min-height: 58px; margin-bottom: 8px; padding: 11px 34px 11px 12px; border-radius: 11px; font-size: .74rem; }
+  .Toastify__toast-icon { width: 18px; }
+}

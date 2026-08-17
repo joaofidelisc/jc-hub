@@ -24,6 +24,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/creator/, '/api/v1/creator'),
       },
+      '/api/planner': {
+        target: process.env.VITE_API_BASE || 'http://backend:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/planner/, '/api/v1/planner'),
+      },
       '/api': {
         target: process.env.VITE_API_BASE || 'http://backend:8000',
         changeOrigin: true,
