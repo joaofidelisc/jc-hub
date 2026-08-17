@@ -73,9 +73,11 @@ function WeeklyPlanner() {
   const sendMessage = async (event) => {
     event.preventDefault();
     const text = message.trim(); if (!text || loading) return;
-    setMessage(''); setMessages(current => [...current, { role: 'user', text }]); setLoading(true);
+    const newMessages = [...messages, { role: 'user', text }];
+    setMessage(''); setMessages(newMessages); setLoading(true);
     try {
-      const { data } = await axios.post('/api/planner/chat', { message: text, state: { tasks, events, suggested_posts: suggestedPosts } }, auth());
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.text }));
+      const { data } = await axios.post('/api/planner/chat', { message: text, messages: apiMessages, state: { tasks, events, suggested_posts: suggestedPosts } }, auth());
       const recurring = data.suggestions?.find(suggestion => suggestion.type === 'recurring_events');
       if (recurring) {
         acceptSuggestion(recurring);

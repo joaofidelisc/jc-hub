@@ -18,8 +18,13 @@ class PlannerState(BaseModel):
     availability: dict[str, Any] = Field(default_factory=dict)
     suggested_posts: list[dict[str, Any]] = Field(default_factory=list)
 
+class MessageInput(BaseModel):
+    role: str
+    content: str
+
 class PlannerChatInput(BaseModel):
     message: str
+    messages: list[MessageInput] = Field(default_factory=list)
     state: PlannerState = Field(default_factory=PlannerState)
 
 def _state(user: User, db=None):
@@ -110,12 +115,17 @@ Retorne APENAS JSON válido, sem uso de markdown de blocos de código (```json).
 
     try:
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        api_messages = [{'role': 'system', 'content': system_prompt}]
+        if payload.messages:
+            for m in payload.messages:
+                api_messages.append({'role': m.role if m.role in ['user', 'assistant'] else 'user', 'content': m.content})
+        else:
+            api_messages.append({'role': 'user', 'content': payload.message})
+
         response = client.chat.completions.create(
             model='gpt-4o-mini',
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': payload.message},
-            ],
+            messages=api_messages,
             temperature=0.2,
             response_format={"type": "json_object"},
         )
