@@ -285,9 +285,16 @@ function WeeklyPlanner() {
                 if (action === 'delete_all') { btnText = 'Limpar tudo'; btnClass = 'btn-delete'; actionLabel = 'Limpar'; }
                 if (action === 'update') { btnText = 'Atualizar'; btnClass = 'btn-update'; actionLabel = 'Alterar'; }
 
+                const isRecurring = suggestion.type === 'recurring_events';
+                const daysCount = suggestion.events?.length;
+                let subtitle = suggestion.category || suggestion.type;
+                if (isRecurring && daysCount) subtitle += ` · ${daysCount === 5 ? 'Seg a Sex' : `${daysCount} dias`}`;
+                if (suggestion.match_by === 'title') subtitle += ' · Todos os dias';
+                if (suggestion.events?.[0]?.time) subtitle += ` · ${suggestion.events[0].time}`;
+
                 return (
                   <div className={`chat-suggestion ${action}`} key={suggestionIndex}>
-                    <div><small>{actionLabel} · {suggestion.category || suggestion.type}{suggestion.match_by === 'title' ? ' · Todos os dias' : ''}</small><strong>{suggestion.title}</strong></div>
+                    <div><small>{actionLabel} · {subtitle}</small><strong>{suggestion.title}</strong></div>
                     <button className={btnClass} onClick={() => acceptSuggestion(suggestion)}>{btnText}</button>
                   </div>
                 );
