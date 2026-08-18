@@ -229,7 +229,7 @@ function CreatorForm({ onSubmit, onCancel, loading, cancelling = false, user }) 
   const validate = () => {
     if (!formData.startDate || !formData.endDate) return 'Escolha as datas de início e término.';
     if (formData.endDate < formData.startDate) return 'A data final deve ser posterior à inicial.';
-    if (formData.endDate > maxEndDate) return 'O período máximo permitido é de dois meses.';
+    if (formData.endDate > maxEndDate) return 'O período máximo permitido é de um mês.';
     if (!formData.objective.trim()) return 'Explique o objetivo deste planejamento.';
     if (!formData.strategy) return 'Escolha uma estratégia.';
     if (!formData.networks.length) return 'Selecione pelo menos uma rede social.';
@@ -293,7 +293,7 @@ function CreatorForm({ onSubmit, onCancel, loading, cancelling = false, user }) 
     <form className="planner-form" onSubmit={handleSubmit} aria-busy={loading}>
       <div className="planner-main-column">
         <section className="planner-section-card">
-          <header><span>01</span><div><h2>Período do planejamento</h2><p>Escolha qualquer intervalo de até dois meses.</p></div></header>
+          <header><span>01</span><div><h2>Período do planejamento</h2><p>Escolha qualquer intervalo de até um mês.</p></div></header>
           <div className="planner-section-body">
             <div className="date-range-grid">
               <BrazilianDateInput label="Começa em" name="startDate" value={formData.startDate} onChange={handleChange} />

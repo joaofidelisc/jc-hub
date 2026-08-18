@@ -65,7 +65,7 @@ const Login = () => {
           </div>
 
           <ul className="auth-features">
-            <li><span>✓</span> Planeje qualquer período de até dois meses</li>
+            <li><span>✓</span> Planeje qualquer período de até um mês</li>
             <li><span>✓</span> Conteúdo adaptado para cada rede social</li>
             <li><span>✓</span> Edite o calendário conversando com a Nova</li>
           </ul>

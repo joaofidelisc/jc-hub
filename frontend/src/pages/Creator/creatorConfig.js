@@ -107,7 +107,7 @@ export const getMaxEndDate = (startDate) => {
   if (!startDate) return '';
   const [year, month, day] = startDate.split('-').map(Number);
   const result = new Date(year, month - 1, day);
-  result.setMonth(result.getMonth() + 2);
+  result.setMonth(result.getMonth() + 1);
   result.setDate(result.getDate() - 1);
   return toLocalISODate(result);
 };

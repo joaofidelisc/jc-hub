@@ -220,7 +220,7 @@ def add_months(value: date, amount: int) -> date:
 
 
 def max_end_date(start_date: date) -> date:
-    return add_months(start_date, 2) - timedelta(days=1)
+    return add_months(start_date, 1) - timedelta(days=1)
 
 
 def period_label(start_date: date, end_date: date) -> str:
@@ -249,7 +249,7 @@ def resolve_period(req: CreatorRequest) -> Tuple[date, date]:
     if end_date < start_date:
         raise HTTPException(status_code=422, detail="A data final deve ser posterior à data inicial.")
     if end_date > max_end_date(start_date):
-        raise HTTPException(status_code=422, detail="O planejamento pode abranger no máximo dois meses.")
+        raise HTTPException(status_code=422, detail="O planejamento pode abranger no máximo um mês.")
     return start_date, end_date
 
 
