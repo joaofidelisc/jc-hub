@@ -78,36 +78,74 @@ function WeeklyPlanner() {
     try {
       const apiMessages = newMessages.map(m => ({ role: m.role, content: m.text }));
       const { data } = await axios.post('/api/planner/chat', { message: text, messages: apiMessages, state: { tasks, events, suggested_posts: suggestedPosts } }, auth());
-      const recurring = data.suggestions?.find(suggestion => suggestion.type === 'recurring_events');
-      if (recurring) {
-        acceptSuggestion(recurring);
-        setMessages(current => [...current, { role: 'assistant', text: data.reply }]);
-      } else {
-        setMessages(current => [...current, { role: 'assistant', text: data.reply, suggestions: data.suggestions }]);
-      }
+      setMessages(current => [...current, { role: 'assistant', text: data.reply, suggestions: data.suggestions }]);
     } catch { setMessages(current => [...current, { role: 'assistant', text: 'Posso ajudar a organizar isso. Tente mencionar seus horários livres, compromissos ou tarefas da semana.' }]); }
     finally { setLoading(false); }
   };
   const acceptSuggestion = (suggestion) => {
     const action = suggestion.action || 'create';
+    const matchByTitle = suggestion.match_by === 'title';
+    const matchTitle = suggestion.match_title || suggestion.title;
+
+    if (action === 'delete_all') {
+      setEvents([]); setTasks([]); save([], []); toast.success('Agenda limpa com sucesso.');
+      return;
+    }
 
     if (action === 'delete') {
       if (suggestion.type === 'event' || suggestion.type === 'recurring_events') {
-         const next = events.filter(e => e.id !== suggestion.id && e.id !== String(suggestion.id));
+         let next;
+         if (matchByTitle) {
+           next = events.filter(e => e.title !== matchTitle);
+         } else {
+           next = events.filter(e => e.id !== suggestion.id && e.id !== String(suggestion.id));
+           // Fallback: if ID match removed nothing, try matching by title
+           if (next.length === events.length && matchTitle) {
+             next = events.filter(e => e.title !== matchTitle);
+           }
+         }
          setEvents(next); save(tasks, next); toast.success('Removido da sua semana.');
       } else {
-         const next = tasks.filter(t => t.id !== suggestion.id && t.id !== String(suggestion.id));
+         let next;
+         if (matchByTitle) {
+           next = tasks.filter(t => t.title !== matchTitle);
+         } else {
+           next = tasks.filter(t => t.id !== suggestion.id && t.id !== String(suggestion.id));
+           if (next.length === tasks.length && matchTitle) {
+             next = tasks.filter(t => t.title !== matchTitle);
+           }
+         }
          setTasks(next); save(next, events); toast.success('Removido da sua semana.');
       }
       return;
     }
 
     if (action === 'update') {
+      const updateFields = { ...suggestion };
+      delete updateFields.action; delete updateFields.match_by; delete updateFields.match_title; delete updateFields.type;
+
       if (suggestion.type === 'event' || suggestion.type === 'recurring_events') {
-         const next = events.map(e => (e.id === suggestion.id || e.id === String(suggestion.id)) ? { ...e, ...suggestion } : e);
+         let next;
+         if (matchByTitle) {
+           next = events.map(e => e.title === matchTitle ? { ...e, ...updateFields } : e);
+         } else {
+           next = events.map(e => (e.id === suggestion.id || e.id === String(suggestion.id)) ? { ...e, ...updateFields } : e);
+           // Fallback: if ID match updated nothing, try matching by title
+           if (JSON.stringify(next) === JSON.stringify(events) && matchTitle) {
+             next = events.map(e => e.title === matchTitle ? { ...e, ...updateFields } : e);
+           }
+         }
          setEvents(next); save(tasks, next); toast.success('Atualizado com sucesso.');
       } else {
-         const next = tasks.map(t => (t.id === suggestion.id || t.id === String(suggestion.id)) ? { ...t, ...suggestion } : t);
+         let next;
+         if (matchByTitle) {
+           next = tasks.map(t => t.title === matchTitle ? { ...t, ...updateFields } : t);
+         } else {
+           next = tasks.map(t => (t.id === suggestion.id || t.id === String(suggestion.id)) ? { ...t, ...updateFields } : t);
+           if (JSON.stringify(next) === JSON.stringify(tasks) && matchTitle) {
+             next = tasks.map(t => t.title === matchTitle ? { ...t, ...updateFields } : t);
+           }
+         }
          setTasks(next); save(next, events); toast.success('Atualizado com sucesso.');
       }
       return;
@@ -115,7 +153,10 @@ function WeeklyPlanner() {
 
     if (suggestion.type === 'recurring_events') {
       const additions = suggestion.events.map((item, index) => ({ id: Date.now() + index, title: suggestion.title, ...item }));
-      const next = [...events, ...additions];
+      // Remove existing events with the same title to prevent duplication
+      const existingTitles = new Set(additions.map(a => a.title));
+      const filtered = events.filter(e => !existingTitles.has(e.title));
+      const next = [...filtered, ...additions];
       setEvents(next); save(tasks, next); toast.success('Rotina adicionada com sucesso.');
       return;
     }
@@ -241,11 +282,12 @@ function WeeklyPlanner() {
                 let btnClass = 'btn-add';
                 let actionLabel = 'Novo';
                 if (action === 'delete') { btnText = 'Remover'; btnClass = 'btn-delete'; actionLabel = 'Excluir'; }
+                if (action === 'delete_all') { btnText = 'Limpar tudo'; btnClass = 'btn-delete'; actionLabel = 'Limpar'; }
                 if (action === 'update') { btnText = 'Atualizar'; btnClass = 'btn-update'; actionLabel = 'Alterar'; }
 
                 return (
                   <div className={`chat-suggestion ${action}`} key={suggestionIndex}>
-                    <div><small>{actionLabel} · {suggestion.category || suggestion.type}</small><strong>{suggestion.title}</strong></div>
+                    <div><small>{actionLabel} · {suggestion.category || suggestion.type}{suggestion.match_by === 'title' ? ' · Todos os dias' : ''}</small><strong>{suggestion.title}</strong></div>
                     <button className={btnClass} onClick={() => acceptSuggestion(suggestion)}>{btnText}</button>
                   </div>
                 );
